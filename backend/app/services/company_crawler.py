@@ -2,6 +2,8 @@
 
 Crawls a company's website (or job posting URL) to extract talent profile,
 core values, and culture keywords. Falls back gracefully when crawling fails.
+
+Uses OpenAI gpt-4o-mini for structured extraction.
 """
 
 from __future__ import annotations
@@ -13,15 +15,14 @@ from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
-from google import genai
-from google.genai import types
+from openai import AsyncOpenAI
 
 from app.config import get_settings
 from app.models.schemas import CompanyInfo
 
 logger = logging.getLogger(__name__)
 
-# Gemini response schema for structured company info extraction
+# JSON schema description for structured company info extraction
 _COMPANY_INFO_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -33,9 +34,12 @@ _COMPANY_INFO_SCHEMA: dict[str, Any] = {
     "required": ["name", "core_values", "talent_profile", "culture_keywords"],
 }
 
-_SYSTEM_PROMPT = """\
+_SYSTEM_PROMPT = f"""\
 You are a corporate analyst. Given raw text crawled from a company's website,
 extract structured information about the company's hiring culture.
+
+Output a JSON object following this schema:
+{json.dumps(_COMPANY_INFO_SCHEMA, indent=2)}
 
 Rules:
 - core_values: list of the company's explicitly stated core values or principles.
@@ -44,6 +48,7 @@ Rules:
 - culture_keywords: important keywords about company culture, work environment, benefits.
 - If certain information is not available, use an empty list or null as appropriate.
 - Always respond in Korean.
+- Output ONLY valid JSON — no extra text.
 """
 
 
@@ -52,8 +57,8 @@ class CompanyCrawlerService:
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._client = genai.Client(api_key=settings.gemini_api_key)
-        self._model = settings.gemini_model
+        self._client = AsyncOpenAI(api_key=settings.openai_api_key)
+        self._model = settings.openai_model
 
     async def _fetch_page_text(self, url: str) -> str:
         """Fetch a URL and extract main text content via BeautifulSoup."""
@@ -144,23 +149,22 @@ class CompanyCrawlerService:
     async def _structure_with_llm(
         self, company_name: str, raw_text: str
     ) -> CompanyInfo:
-        """Send raw crawled text to Gemini to extract structured CompanyInfo."""
-        prompt = (
-            f"{_SYSTEM_PROMPT}\n\n"
+        """Send raw crawled text to OpenAI to extract structured CompanyInfo."""
+        user_content = (
             f"회사명: {company_name}\n\n"
             f"--- Crawled Text ---\n{raw_text}"
         )
 
-        response = await self._client.aio.models.generate_content(
+        response = await self._client.chat.completions.create(
             model=self._model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=_COMPANY_INFO_SCHEMA,
-                temperature=0.1,
-            ),
+            messages=[
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1,
         )
 
-        data = json.loads(response.text)
+        data = json.loads(response.choices[0].message.content or "{}")
         data["raw_text"] = raw_text[:3000]  # store truncated version
         return CompanyInfo.model_validate(data)

@@ -171,9 +171,18 @@ export interface JobRecommendationResponse {
   total: number;
 }
 
+export async function browseJobs(
+  q: string = "",
+  page: number = 1,
+  size: number = 20,
+): Promise<JobRecommendationResponse> {
+  const params = new URLSearchParams({ q, page: String(page), size: String(size) });
+  return request<JobRecommendationResponse>(`/jobs/browse?${params}`);
+}
+
 export async function getRecommendedJobs(
   portfolioId: string,
-  limit = 10
+  limit = 30
 ): Promise<JobRecommendationResponse> {
   return request<JobRecommendationResponse>(
     `/jobs/recommend?portfolio_id=${portfolioId}&limit=${limit}`
@@ -182,7 +191,7 @@ export async function getRecommendedJobs(
 
 export async function searchJobs(
   keyword: string,
-  limit = 10
+  limit = 30
 ): Promise<JobRecommendationResponse> {
   return request<JobRecommendationResponse>(
     `/jobs/search?q=${encodeURIComponent(keyword)}&limit=${limit}`
@@ -261,6 +270,22 @@ export async function endInterview(
 
 export async function listInterviewSessions(): Promise<InterviewSessionListItem[]> {
   return request<InterviewSessionListItem[]>("/interview/list");
+}
+
+export interface InterviewHistoryMessage {
+  role: "interviewer" | "candidate";
+  content: string;
+}
+
+export interface InterviewHistoryResponse {
+  session_id: string;
+  messages: InterviewHistoryMessage[];
+}
+
+export async function getInterviewHistory(
+  sessionId: string
+): Promise<InterviewHistoryResponse> {
+  return request<InterviewHistoryResponse>(`/interview/${sessionId}/history`);
 }
 
 // ── Resume ─────────────────────────────────────────────────
@@ -429,6 +454,31 @@ export interface CandidateMatchResponse {
   job_id: string;
   candidates: CandidateMatchItem[];
   total: number;
+}
+
+export interface PublicPortfolioItem {
+  portfolio_id: string;
+  user_name?: string | null;
+  summary?: string | null;
+  skills: string[];
+  keywords: string[];
+  updated_at?: string | null;
+}
+
+export interface BrowsePortfoliosResponse {
+  items: PublicPortfolioItem[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export async function browsePublicPortfolios(
+  q: string = "",
+  page: number = 1,
+  size: number = 20,
+): Promise<BrowsePortfoliosResponse> {
+  const params = new URLSearchParams({ q, page: String(page), size: String(size) });
+  return request<BrowsePortfoliosResponse>(`/company/candidates/browse?${params}`);
 }
 
 export async function matchCandidates(jobId: string, limit = 20): Promise<CandidateMatchResponse> {

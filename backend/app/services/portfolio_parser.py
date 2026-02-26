@@ -2,7 +2,7 @@
 
 Pipeline:
   1. Extract raw text from the input source (PDF / URL / GitHub / plain text).
-  2. Send raw text to Gemini with a strict JSON schema to produce a
+  2. Send raw text to OpenAI gpt-4o-mini with a strict JSON schema to produce a
      unified PortfolioSchema.
   3. Return the structured result for user review.
 """
@@ -17,15 +17,14 @@ from typing import Any
 import httpx
 import pdfplumber
 from bs4 import BeautifulSoup
-from google import genai
-from google.genai import types
+from openai import AsyncOpenAI
 
 from app.config import get_settings
 from app.models.schemas import PortfolioSchema
 
 logger = logging.getLogger(__name__)
 
-# JSON schema that Gemini must follow (controlled generation)
+# JSON schema description embedded in the system prompt for structured output
 _PORTFOLIO_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -97,10 +96,12 @@ _PORTFOLIO_JSON_SCHEMA: dict[str, Any] = {
     ],
 }
 
-_SYSTEM_PROMPT = """\
+_SYSTEM_PROMPT = f"""\
 You are a professional resume/portfolio analyst.
 Given raw text extracted from a portfolio (resume, personal website, GitHub profile, etc.),
-produce a structured JSON object following the provided schema.
+produce a structured JSON object following this schema:
+
+{json.dumps(_PORTFOLIO_JSON_SCHEMA, indent=2)}
 
 Rules:
 - Extract every piece of information you can find.
@@ -108,6 +109,7 @@ Rules:
 - Infer implicit skills from project descriptions (e.g. "Built a REST API with FastAPI" -> add FastAPI, Python).
 - The 'keywords' field should contain the most important terms for job matching (technologies, domains, roles).
 - Always respond in the same language as the input text.
+- Output ONLY valid JSON — no extra text or markdown fences.
 """
 
 
@@ -116,8 +118,8 @@ class PortfolioParserService:
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._client = genai.Client(api_key=settings.gemini_api_key)
-        self._model = settings.gemini_model
+        self._client = AsyncOpenAI(api_key=settings.openai_api_key)
+        self._model = settings.openai_model
 
     # ── 1. Text extraction per source ──────────────────────────
 
@@ -245,22 +247,19 @@ class PortfolioParserService:
     # ── 2. LLM structuring ────────────────────────────────────
 
     async def structure_with_llm(self, raw_text: str) -> PortfolioSchema:
-        """Send raw text to Gemini and get a structured PortfolioSchema.
+        """Send raw text to OpenAI and get a structured PortfolioSchema.
 
-        Uses Gemini controlled generation (response_schema) to guarantee
-        the output matches PortfolioSchema exactly.
+        Uses JSON mode to guarantee valid JSON output.
         """
-        prompt = f"{_SYSTEM_PROMPT}\n\n---\n\n{raw_text}"
-
-        response = await self._client.aio.models.generate_content(
+        response = await self._client.chat.completions.create(
             model=self._model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=_PORTFOLIO_JSON_SCHEMA,
-                temperature=0.1,
-            ),
+            messages=[
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": raw_text},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1,
         )
 
-        data = json.loads(response.text)
+        data = json.loads(response.choices[0].message.content or "{}")
         return PortfolioSchema.model_validate(data)

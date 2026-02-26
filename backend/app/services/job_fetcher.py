@@ -34,10 +34,21 @@ def _crawled_to_posting(row: CrawledJob) -> JobPosting:
     )
 
 
+def _keyword_filter(keywords: str):
+    """Build an ILIKE OR clause for keyword filtering."""
+    pattern = f"%{keywords}%"
+    return or_(
+        CrawledJob.title.ilike(pattern),
+        CrawledJob.description.ilike(pattern),
+        CrawledJob.company.ilike(pattern),
+    )
+
+
 async def fetch_crawled_jobs(
     db: AsyncSession,
     keywords: str = "",
     limit: int = 50,
+    offset: int = 0,
 ) -> list[JobPosting]:
     """Query active crawled jobs from DB, optionally filtering by keyword.
 
@@ -50,27 +61,21 @@ async def fetch_crawled_jobs(
     )
 
     if keywords:
-        pattern = f"%{keywords}%"
-        query = query.where(
-            or_(
-                CrawledJob.title.ilike(pattern),
-                CrawledJob.description.ilike(pattern),
-                CrawledJob.company.ilike(pattern),
-            )
-        )
+        query = query.where(_keyword_filter(keywords))
 
-    query = query.limit(limit)
+    query = query.offset(offset).limit(limit)
 
     result = await db.execute(query)
     rows = result.scalars().all()
     return [_crawled_to_posting(r) for r in rows]
 
 
-async def count_active_crawled_jobs(db: AsyncSession) -> int:
+async def count_active_crawled_jobs(db: AsyncSession, keywords: str = "") -> int:
     """Return the total number of active crawled jobs in DB."""
-    result = await db.execute(
-        select(func.count()).select_from(CrawledJob).where(CrawledJob.is_active == 1)
-    )
+    query = select(func.count()).select_from(CrawledJob).where(CrawledJob.is_active == 1)
+    if keywords:
+        query = query.where(_keyword_filter(keywords))
+    result = await db.execute(query)
     return result.scalar() or 0
 
 

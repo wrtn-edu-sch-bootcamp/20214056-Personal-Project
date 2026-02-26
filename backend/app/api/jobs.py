@@ -61,15 +61,31 @@ async def _fetch_company_jobs(db: AsyncSession, keyword: str = "") -> list[JobPo
     return jobs
 
 
+@router.get("/browse", response_model=JobRecommendationResponse)
+async def browse_jobs(
+    q: str = Query("", description="Optional keyword filter"),
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(20, ge=1, le=100, description="Page size"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Browse all crawled job postings with optional keyword filter and pagination."""
+    from app.services.job_fetcher import fetch_crawled_jobs, count_active_crawled_jobs
+
+    offset = (page - 1) * size
+    jobs = await fetch_crawled_jobs(db, keywords=q, limit=size, offset=offset)
+    total = await count_active_crawled_jobs(db, keywords=q)
+    return JobRecommendationResponse(jobs=jobs, total=total)
+
+
 @router.get("/recommend", response_model=JobRecommendationResponse)
 async def recommend_jobs(
     portfolio_id: str = Query(..., description="ID of the parsed portfolio"),
-    limit: int = Query(10, ge=1, le=50),
+    limit: int = Query(30, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
     """Return job postings ranked by similarity to the portfolio.
 
-    Merges external API jobs with company-registered postings.
+    Merges crawled jobs with company-registered postings.
     """
     row = await crud.get_portfolio(db, portfolio_id)
     if row is None:
@@ -77,13 +93,12 @@ async def recommend_jobs(
 
     portfolio = PortfolioSchema.model_validate(row.portfolio_json)
 
-    # Get external + crawled + mock jobs via matcher (DB session enables crawled-job lookup)
+    # Get crawled jobs via matcher
     external_jobs = await _matcher.recommend(portfolio, limit=limit, db=db)
 
-    # Get company DB jobs (unranked, embedding done separately if needed)
+    # Get company DB jobs
     company_jobs = await _fetch_company_jobs(db)
 
-    # Merge: external (already ranked) first, then company jobs at the end
     merged = external_jobs + company_jobs
     return JobRecommendationResponse(jobs=merged[:limit], total=len(merged))
 
@@ -91,7 +106,7 @@ async def recommend_jobs(
 @router.get("/search", response_model=JobRecommendationResponse)
 async def search_jobs(
     q: str = Query(..., description="Search keyword"),
-    limit: int = Query(10, ge=1, le=50),
+    limit: int = Query(30, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
     """Keyword-based job search across external APIs and company postings."""

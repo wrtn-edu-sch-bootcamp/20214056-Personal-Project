@@ -22,7 +22,6 @@ export default function CompanyJobsPage() {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [requirementsText, setRequirementsText] = useState("");
@@ -99,195 +98,208 @@ export default function CompanyJobsPage() {
 
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-slate-50">
         <Navigation />
-        <main className="max-w-6xl mx-auto px-4 py-12 text-center">
-          <p className="text-gray-500">로딩 중...</p>
-          <p className="text-xs text-gray-400 mt-1">서버가 절전 모드일 경우 최초 요청 시 30~60초가 소요될 수 있습니다.</p>
+        <main className="page-container py-20 text-center">
+          <div className="spinner w-8 h-8 text-emerald-600 mx-auto" />
+          <p className="text-slate-500 mt-4">로딩 중...</p>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <Navigation />
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">채용 공고 관리</h1>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition"
-          >
-            {showForm ? "취소" : "+ 새 공고 등록"}
-          </button>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200 mb-6">{error}</div>
-        )}
-
-        {/* Create form */}
-        {showForm && (
-          <form onSubmit={handleCreate} className="bg-white rounded-xl border border-gray-200 p-6 mb-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">공고 제목 *</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="예: 백엔드 개발자 (Python/FastAPI)"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">공고 설명</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-y"
-                placeholder="담당 업무, 근무 조건 등을 자유롭게 작성하세요."
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">자격 요건 (줄바꿈 구분)</label>
-                <textarea
-                  value={requirementsText}
-                  onChange={(e) => setRequirementsText(e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-y"
-                  placeholder={"Python 3년 이상\nREST API 경험\nRDBMS 실무"}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">우대 사항 (줄바꿈 구분)</label>
-                <textarea
-                  value={preferredText}
-                  onChange={(e) => setPreferredText(e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-y"
-                  placeholder={"FastAPI\nDocker\nAWS"}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">근무 지역</label>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="서울 강남구"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">급여</label>
-                <input
-                  type="text"
-                  value={salary}
-                  onChange={(e) => setSalary(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="5,000만~7,000만 원"
-                />
-              </div>
-            </div>
+      <main className="page-container py-8 sm:py-10">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
+            <h1 className="section-title text-xl sm:text-2xl">채용 공고 관리</h1>
             <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50 transition"
+              onClick={() => setShowForm(!showForm)}
+              className={showForm ? "btn-secondary" : "btn-primary"}
             >
-              {submitting ? "등록 중..." : "공고 등록"}
+              {showForm ? "취소" : "+ 새 공고 등록"}
             </button>
-          </form>
-        )}
+          </div>
 
-        {/* Jobs list */}
-        {loading ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">불러오는 중...</p>
-            <p className="text-xs text-gray-400 mt-1">서버 상태에 따라 최대 1분 정도 소요될 수 있습니다.</p>
-          </div>
-        ) : jobs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">
-            등록된 공고가 없습니다.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {jobs.map((job) => (
-              <div key={job.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{job.title}</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {job.location || "미지정"}
-                      {job.salary && ` · ${job.salary}`}
-                    </p>
-                  </div>
-                  <span
-                    className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${
-                      job.status === "published"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : job.status === "closed"
-                        ? "bg-gray-100 text-gray-500"
-                        : "bg-yellow-50 text-yellow-700"
-                    }`}
-                  >
-                    {job.status === "published" ? "게시중" : job.status === "closed" ? "마감" : "초안"}
-                  </span>
+          {error && (
+            <div className="flex items-start gap-2 bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm border border-red-100 mb-6">
+              <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {error}
+            </div>
+          )}
+
+          {/* Create form */}
+          {showForm && (
+            <form onSubmit={handleCreate} className="card-premium p-6 sm:p-8 mb-6 space-y-5 animate-fade-in-down">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">공고 제목 *</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="input-field"
+                  placeholder="예: 백엔드 개발자 (Python/FastAPI)"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">공고 설명</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={4}
+                  className="input-field resize-y"
+                  placeholder="담당 업무, 근무 조건 등을 자유롭게 작성하세요."
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">자격 요건 (줄바꿈 구분)</label>
+                  <textarea
+                    value={requirementsText}
+                    onChange={(e) => setRequirementsText(e.target.value)}
+                    rows={3}
+                    className="input-field resize-y"
+                    placeholder={"Python 3년 이상\nREST API 경험\nRDBMS 실무"}
+                  />
                 </div>
-
-                {job.description && (
-                  <p className="text-sm text-gray-600 line-clamp-2 mb-3">{job.description}</p>
-                )}
-
-                {(job.requirements.length > 0 || job.preferred.length > 0) && (
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {job.requirements.map((r, i) => (
-                      <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{r}</span>
-                    ))}
-                    {job.preferred.map((p, i) => (
-                      <span key={`p-${i}`} className="text-xs bg-primary-50 text-primary-600 px-2 py-0.5 rounded">{p}</span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
-                  <Link
-                    href={`/company/candidates?job_id=${job.id}`}
-                    className="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-                  >
-                    매칭 후보자
-                  </Link>
-                  {job.status === "published" ? (
-                    <button
-                      onClick={() => handleStatusChange(job.id, "closed")}
-                      className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                      마감
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleStatusChange(job.id, "published")}
-                      className="text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors"
-                    >
-                      게시
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDelete(job.id)}
-                    className="text-xs px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors ml-auto"
-                  >
-                    삭제
-                  </button>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">우대 사항 (줄바꿈 구분)</label>
+                  <textarea
+                    value={preferredText}
+                    onChange={(e) => setPreferredText(e.target.value)}
+                    rows={3}
+                    className="input-field resize-y"
+                    placeholder={"FastAPI\nDocker\nAWS"}
+                  />
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">근무 지역</label>
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="input-field"
+                    placeholder="서울 강남구"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">급여</label>
+                  <input
+                    type="text"
+                    value={salary}
+                    onChange={(e) => setSalary(e.target.value)}
+                    className="input-field"
+                    placeholder="5,000만~7,000만 원"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-3.5 btn-primary text-sm"
+              >
+                {submitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="spinner w-4 h-4" />
+                    등록 중...
+                  </span>
+                ) : "공고 등록"}
+              </button>
+            </form>
+          )}
+
+          {/* Jobs list */}
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="spinner w-8 h-8 text-emerald-600 mx-auto" />
+              <p className="text-slate-500 mt-4">불러오는 중...</p>
+            </div>
+          ) : jobs.length === 0 ? (
+            <div className="card-premium p-10 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-7 h-7 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <p className="text-slate-500 text-sm">등록된 공고가 없습니다.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {jobs.map((job) => (
+                <div key={job.id} className="card-premium p-5 sm:p-6">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-slate-900">{job.title}</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {job.location || "미지정"}
+                        {job.salary && <span className="text-slate-300 mx-1.5">·</span>}
+                        {job.salary}
+                      </p>
+                    </div>
+                    <span className={
+                      job.status === "published" ? "badge-success" :
+                      job.status === "closed" ? "badge-neutral" : "badge-warning"
+                    }>
+                      {job.status === "published" ? "게시중" : job.status === "closed" ? "마감" : "초안"}
+                    </span>
+                  </div>
+
+                  {job.description && (
+                    <p className="text-sm text-slate-600 line-clamp-2 mb-3 leading-relaxed">{job.description}</p>
+                  )}
+
+                  {(job.requirements.length > 0 || job.preferred.length > 0) && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {job.requirements.map((r, i) => (
+                        <span key={i} className="badge-neutral text-[11px]">{r}</span>
+                      ))}
+                      {job.preferred.map((p, i) => (
+                        <span key={`p-${i}`} className="badge-primary text-[11px]">{p}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100">
+                    <Link
+                      href={`/company/candidates?job_id=${job.id}`}
+                      className="inline-flex items-center justify-center px-3 py-1.5 bg-emerald-600 text-white font-semibold text-xs rounded-xl shadow-sm shadow-emerald-600/25 hover:bg-emerald-700 transition-all duration-200"
+                    >
+                      매칭 후보자
+                    </Link>
+                    {job.status === "published" ? (
+                      <button
+                        onClick={() => handleStatusChange(job.id, "closed")}
+                        className="btn-ghost text-xs text-slate-500"
+                      >
+                        마감
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleStatusChange(job.id, "published")}
+                        className="btn-ghost text-xs text-emerald-600"
+                      >
+                        게시
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(job.id)}
+                      className="text-xs px-3 py-1.5 text-red-500 hover:bg-red-50 rounded-xl transition-all ml-auto font-medium"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

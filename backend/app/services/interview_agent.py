@@ -1,13 +1,8 @@
 """Interview simulation agent.
 
-Manages multi-turn interview sessions powered by Gemini 2.0 Flash.
+Manages multi-turn interview sessions powered by OpenAI gpt-4o-mini.
 Each session maintains its own conversation history so the model can ask
 follow-up questions that probe deeper into the candidate's answers.
-
-Gemini uses a different multi-turn format from OpenAI:
-  - roles are "user" / "model" (not "assistant")
-  - system instruction is passed separately via GenerateContentConfig
-  - history is passed as a list of Content objects
 """
 
 from __future__ import annotations
@@ -18,8 +13,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from google import genai
-from google.genai import types
+from openai import AsyncOpenAI
 
 from app.config import get_settings
 from app.models.schemas import (
@@ -106,7 +100,7 @@ Rules:
 """
 
 
-# JSON schema for structured evaluation (Gemini controlled generation format)
+# JSON schema for structured evaluation
 _EVALUATION_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -119,11 +113,6 @@ _EVALUATION_SCHEMA: dict[str, Any] = {
 }
 
 
-def _make_content(role: str, text: str) -> types.Content:
-    """Create a Gemini Content object."""
-    return types.Content(role=role, parts=[types.Part(text=text)])
-
-
 @dataclass
 class _Session:
     """Internal state for a single interview session."""
@@ -132,52 +121,51 @@ class _Session:
     job: JobPosting | None
     interview_type: str
     system_instruction: str
-    # Gemini history: list of Content(role="user"|"model", parts=[Part(text=...)])
-    history: list[types.Content] = field(default_factory=list)
+    # OpenAI message history: list of {"role": "user"|"assistant", "content": ...}
+    history: list[dict[str, str]] = field(default_factory=list)
     question_count: int = 0
     max_questions: int = 7
 
 
 class InterviewAgentService:
-    """Manages interview sessions with Gemini 2.0 Flash."""
+    """Manages interview sessions with OpenAI gpt-4o-mini."""
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._client = genai.Client(api_key=settings.gemini_api_key)
-        self._model = settings.gemini_model
+        self._client = AsyncOpenAI(api_key=settings.openai_api_key)
+        self._model = settings.openai_model
         self._sessions: dict[str, _Session] = {}
 
     async def _chat(
         self,
         session: _Session,
         user_text: str,
-        json_schema: dict[str, Any] | None = None,
+        json_mode: bool = False,
     ) -> str:
         """Send a message within a session and return the model reply."""
         # Append the new user turn to history
-        session.history.append(_make_content("user", user_text))
+        session.history.append({"role": "user", "content": user_text})
 
-        config = types.GenerateContentConfig(
-            system_instruction=session.system_instruction,
-            temperature=0.7,
-        )
-        if json_schema:
-            config = types.GenerateContentConfig(
-                system_instruction=session.system_instruction,
-                response_mime_type="application/json",
-                response_schema=json_schema,
-                temperature=0.3,
-            )
+        # Build messages: system + full history
+        messages = [
+            {"role": "system", "content": session.system_instruction},
+            *session.history,
+        ]
 
-        response = await self._client.aio.models.generate_content(
-            model=self._model,
-            contents=session.history,
-            config=config,
-        )
-        reply = response.text or ""
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "messages": messages,
+            "temperature": 0.7,
+        }
+        if json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
+            kwargs["temperature"] = 0.3
 
-        # Append model reply to history for next turn
-        session.history.append(_make_content("model", reply))
+        response = await self._client.chat.completions.create(**kwargs)
+        reply = response.choices[0].message.content or ""
+
+        # Append assistant reply to history for next turn
+        session.history.append({"role": "assistant", "content": reply})
         return reply
 
     async def start_session(
@@ -240,11 +228,12 @@ class InterviewAgentService:
 
         eval_prompt = (
             "면접이 종료되었습니다. 지금까지의 모든 질문과 답변을 종합하여 "
-            "후보자에 대한 전체 평가를 작성해 주세요. "
-            "100점 만점 기준 점수, 강점, 개선점을 포함해 주세요."
+            "후보자에 대한 전체 평가를 JSON 형식으로 작성해 주세요. "
+            "다음 필드를 포함: overall_feedback(문자열), score(100점 만점 숫자), "
+            "strengths(문자열 배열), improvements(문자열 배열)."
         )
 
-        content = await self._chat(session, eval_prompt, json_schema=_EVALUATION_SCHEMA)
+        content = await self._chat(session, eval_prompt, json_mode=True)
         evaluation = json.loads(content)
 
         return InterviewEndResponse(
@@ -262,10 +251,9 @@ class InterviewAgentService:
             return None
 
         messages: list[InterviewMessage] = []
-        for content in session.history:
-            role = "interviewer" if content.role == "model" else "candidate"
-            text = content.parts[0].text if content.parts else ""
-            messages.append(InterviewMessage(role=role, content=text))
+        for msg in session.history:
+            role = "interviewer" if msg["role"] == "assistant" else "candidate"
+            messages.append(InterviewMessage(role=role, content=msg["content"]))
 
         return InterviewHistoryResponse(
             session_id=session_id,

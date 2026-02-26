@@ -13,6 +13,7 @@ Design decisions:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import uuid
@@ -305,15 +306,15 @@ async def _upsert_jobs(db: AsyncSession, jobs: list[dict[str, Any]]) -> int:
             "company": job["company"],
             "location": job.get("location") or None,
             "description": job.get("description") or None,
-            "requirements_json": job.get("requirements", []),
-            "preferred_json": job.get("preferred", []),
+            "requirements_json": json.dumps(job.get("requirements", []), ensure_ascii=False),
+            "preferred_json": json.dumps(job.get("preferred", []), ensure_ascii=False),
             "salary": job.get("salary") or None,
             "url": job.get("url") or None,
             "experience": job.get("experience") or None,
             "education": job.get("education") or None,
             "employment_type": job.get("employment_type") or None,
             "deadline": job.get("deadline") or None,
-            "tech_stack_json": job.get("tech_stack", []),
+            "tech_stack_json": json.dumps(job.get("tech_stack", []), ensure_ascii=False),
             "crawled_at": datetime.now(timezone.utc),
             "is_active": 1,
         })

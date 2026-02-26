@@ -76,6 +76,31 @@ async def generate_resume(
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    # Prevent duplicate: if same user already generated a resume for this job, return it
+    if user:
+        from sqlalchemy import select
+        existing = await db.execute(
+            select(ResumeModel).where(
+                ResumeModel.user_id == user.id,
+                ResumeModel.job_id == req.job_id,
+            )
+        )
+        existing_row = existing.scalars().first()
+        if existing_row:
+            ci = None
+            if existing_row.company_info_json:
+                try:
+                    from app.models.schemas import CompanyInfo
+                    ci = CompanyInfo.model_validate(existing_row.company_info_json)
+                except Exception:
+                    pass
+            return ResumeResponse(
+                id=existing_row.id,
+                markdown_content=existing_row.markdown_content,
+                company_info=ci,
+                crawl_success=bool(existing_row.crawl_success),
+            )
+
     company_url = req.company_url or job.url
     company_info = None
     crawl_success = False

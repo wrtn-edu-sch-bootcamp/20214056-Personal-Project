@@ -5,9 +5,9 @@ from functools import lru_cache
 class Settings(BaseSettings):
     """Application-wide configuration loaded from environment variables."""
 
-    gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash-lite"
-    gemini_embedding_model: str = "gemini-embedding-001"
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_embedding_model: str = "text-embedding-3-small"
 
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5433/portfolio_recommender"
 

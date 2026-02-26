@@ -31,6 +31,71 @@ async def _get_company(db: AsyncSession, user: User) -> Company:
     return company
 
 
+@router.get("/browse")
+async def browse_public_portfolios(
+    q: str = Query("", description="Optional keyword filter"),
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(20, ge=1, le=100, description="Page size"),
+    user: User = Depends(_company_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Browse all public portfolios with optional keyword filter and pagination."""
+    from sqlalchemy import func
+
+    base_query = select(Portfolio).where(Portfolio.is_public == 1)
+
+    # Optional keyword filter across name, summary, skills
+    if q.strip():
+        kw = q.strip().lower()
+        # Filter in Python after fetch (simpler than JSONB queries)
+        count_result = await db.execute(
+            select(func.count()).select_from(Portfolio).where(Portfolio.is_public == 1)
+        )
+        all_result = await db.execute(
+            base_query.order_by(Portfolio.updated_at.desc())
+        )
+        all_portfolios = list(all_result.scalars().all())
+
+        filtered = []
+        for pf in all_portfolios:
+            pj = pf.portfolio_json or {}
+            name = (pj.get("name") or "").lower()
+            summary = (pj.get("summary") or "").lower()
+            skills_text = " ".join(s.get("name", "") for s in pj.get("skills", [])).lower()
+            keywords_text = " ".join(pj.get("keywords", [])).lower()
+            if kw in name or kw in summary or kw in skills_text or kw in keywords_text:
+                filtered.append(pf)
+
+        total = len(filtered)
+        offset = (page - 1) * size
+        page_items = filtered[offset:offset + size]
+    else:
+        count_result = await db.execute(
+            select(func.count()).select_from(Portfolio).where(Portfolio.is_public == 1)
+        )
+        total = count_result.scalar() or 0
+
+        offset = (page - 1) * size
+        result = await db.execute(
+            base_query.order_by(Portfolio.updated_at.desc()).offset(offset).limit(size)
+        )
+        page_items = list(result.scalars().all())
+
+    items = []
+    for pf in page_items:
+        pj = pf.portfolio_json or {}
+        items.append({
+            "portfolio_id": pf.id,
+            "user_name": pj.get("name"),
+            "summary": pj.get("summary"),
+            "skills": [s.get("name", "") for s in pj.get("skills", [])][:10],
+            "keywords": pj.get("keywords", [])[:8],
+            "updated_at": pf.updated_at.isoformat() if pf.updated_at else None,
+        })
+
+    return {"items": items, "total": total, "page": page, "size": size}
+
+
 @router.get("/match", response_model=CandidateMatchResponse)
 async def match_candidates(
     job_id: str = Query(..., description="ID of the company job posting"),

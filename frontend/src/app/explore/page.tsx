@@ -1,82 +1,51 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
 import Navigation from "@/components/Navigation";
 import AuthGuard from "@/components/AuthGuard";
-import { getRecommendedJobs, searchJobs, type JobPosting } from "@/lib/api";
+import { browseJobs, type JobPosting } from "@/lib/api";
 
-export default function JobsPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
-      <JobsContent />
-    </Suspense>
-  );
-}
-
-function JobsContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  const portfolioId = searchParams.get("portfolio_id");
-
+export default function ExplorePage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [keyword, setKeyword] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [keyword, setKeyword] = useState("");
-  const [mode, setMode] = useState<"recommend" | "search">(
-    portfolioId ? "recommend" : "search"
-  );
+
+  const PAGE_SIZE = 20;
+
+  const loadJobs = useCallback(async (q: string, p: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await browseJobs(q, p, PAGE_SIZE);
+      setJobs(resp.jobs);
+      setTotal(resp.total);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "채용공고 조회에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (portfolioId && mode === "recommend") {
-      loadRecommendations();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [portfolioId, mode]);
+    loadJobs(keyword, page);
+  }, [keyword, page, loadJobs]);
 
-  const loadRecommendations = async () => {
-    if (!portfolioId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await getRecommendedJobs(portfolioId);
-      setJobs(resp.jobs);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "추천 로딩 실패");
-    } finally {
-      setLoading(false);
-    }
+  const handleSearch = () => {
+    setKeyword(searchInput.trim());
+    setPage(1);
   };
 
-  const handleSearch = async () => {
-    if (!keyword.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await searchJobs(keyword);
-      setJobs(resp.jobs);
-      setMode("search");
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "검색 실패");
-    } finally {
-      setLoading(false);
-    }
+  const handleReset = () => {
+    setSearchInput("");
+    setKeyword("");
+    setPage(1);
   };
 
-  const startInterview = (jobId: string) => {
-    const params = new URLSearchParams();
-    if (portfolioId) params.set("portfolio_id", portfolioId);
-    params.set("job_id", jobId);
-    router.push(`/interview?${params.toString()}`);
-  };
-
-  const generateResume = (jobId: string) => {
-    const params = new URLSearchParams();
-    if (portfolioId) params.set("portfolio_id", portfolioId);
-    params.set("job_id", jobId);
-    router.push(`/resume?${params.toString()}`);
-  };
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <AuthGuard>
@@ -85,11 +54,10 @@ function JobsContent() {
         <div className="page-container py-8 sm:py-10">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="section-title">채용 공고 추천</h1>
+            <h1 className="section-title">채용공고 탐색</h1>
             <p className="section-subtitle">
-              {portfolioId
-                ? "포트폴리오 기반으로 추천된 채용공고입니다."
-                : "포트폴리오를 먼저 입력하면 맞춤 추천을 받을 수 있습니다."}
+              사람인에서 수집한 최신 IT 채용공고를 확인하세요.
+              <span className="ml-2 badge-neutral">{total}건</span>
             </p>
           </div>
 
@@ -102,10 +70,10 @@ function JobsContent() {
                 </svg>
                 <input
                   type="text"
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  placeholder="키워드로 검색 (예: Python, 프론트엔드)"
+                  placeholder="직무, 기업명, 기술 스택으로 검색"
                   className="input-field pl-10"
                 />
               </div>
@@ -113,31 +81,19 @@ function JobsContent() {
                 <button onClick={handleSearch} className="btn-primary flex-1 sm:flex-none">
                   검색
                 </button>
-                {portfolioId && (
-                  <button
-                    onClick={() => { setMode("recommend"); loadRecommendations(); }}
-                    className="btn-secondary flex-1 sm:flex-none text-indigo-600 border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50"
-                  >
-                    AI 추천 보기
+                {keyword && (
+                  <button onClick={handleReset} className="btn-secondary flex-1 sm:flex-none">
+                    초기화
                   </button>
                 )}
               </div>
             </div>
+            {keyword && (
+              <div className="mt-3 text-sm text-slate-500">
+                &ldquo;<span className="font-medium text-slate-700">{keyword}</span>&rdquo; 검색 결과: <span className="font-semibold">{total}</span>건
+              </div>
+            )}
           </div>
-
-          {!portfolioId && (
-            <div className="flex items-start gap-3 p-4 bg-indigo-50/60 rounded-xl text-sm text-indigo-700 border border-indigo-100 mb-6">
-              <svg className="w-5 h-5 shrink-0 mt-0.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>
-                맞춤 추천을 받으려면{" "}
-                <button onClick={() => router.push("/portfolio")} className="underline font-semibold">
-                  포트폴리오를 먼저 등록
-                </button>해 주세요.
-              </span>
-            </div>
-          )}
 
           {error && (
             <div className="flex items-start gap-2 bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm border border-red-100 mb-6">
@@ -148,11 +104,14 @@ function JobsContent() {
             </div>
           )}
 
+          {/* Loading */}
           {loading && (
             <div className="text-center py-16">
               <div className="spinner w-8 h-8 text-indigo-600 mx-auto" />
-              <p className="mt-4 text-slate-500">채용공고를 분석하고 있습니다...</p>
-              <p className="mt-1 text-xs text-slate-400">서버 상태에 따라 최대 1분 정도 소요될 수 있습니다.</p>
+              <p className="mt-4 text-slate-500">채용공고를 불러오는 중...</p>
+              <p className="mt-1 text-xs text-slate-400">
+                서버 상태에 따라 최대 1분 정도 소요될 수 있습니다.
+              </p>
             </div>
           )}
 
@@ -165,11 +124,6 @@ function JobsContent() {
                     <h3 className="text-base sm:text-lg font-bold text-slate-900 flex-1 min-w-0">
                       {job.title}
                     </h3>
-                    {job.similarity_score != null && (
-                      <span className="badge-success whitespace-nowrap">
-                        매칭 {(job.similarity_score * 100).toFixed(0)}%
-                      </span>
-                    )}
                   </div>
                   <p className="text-sm text-slate-500 mt-1">
                     {job.company}
@@ -177,7 +131,9 @@ function JobsContent() {
                     {job.location}
                   </p>
                   {job.description && (
-                    <p className="text-sm text-slate-600 mt-2 line-clamp-2 leading-relaxed">{job.description}</p>
+                    <p className="text-sm text-slate-600 mt-2 line-clamp-2 leading-relaxed">
+                      {job.description}
+                    </p>
                   )}
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {job.requirements.map((r, i) => (
@@ -192,28 +148,12 @@ function JobsContent() {
                   )}
 
                   <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
-                    {portfolioId && (
-                      <>
-                        <button
-                          onClick={() => generateResume(job.id)}
-                          className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-sm shadow-emerald-600/25 hover:bg-emerald-700 transition-all duration-200"
-                        >
-                          맞춤 이력서
-                        </button>
-                        <button
-                          onClick={() => startInterview(job.id)}
-                          className="btn-primary text-xs sm:text-sm"
-                        >
-                          면접 연습
-                        </button>
-                      </>
-                    )}
                     {job.url && (
                       <a
                         href={job.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn-secondary text-xs sm:text-sm"
+                        className="btn-primary text-xs"
                       >
                         공고 보기
                         <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,6 +167,7 @@ function JobsContent() {
             </div>
           )}
 
+          {/* Empty state */}
           {!loading && jobs.length === 0 && !error && (
             <div className="text-center py-20">
               <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
@@ -234,7 +175,32 @@ function JobsContent() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <p className="text-lg font-medium text-slate-400">검색 결과가 없습니다.</p>
+              <p className="text-lg font-medium text-slate-400">
+                {keyword ? "검색 결과가 없습니다." : "등록된 채용공고가 없습니다."}
+              </p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && totalPages > 1 && (
+            <div className="mt-8 flex justify-center items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="btn-secondary text-xs px-4 py-2 disabled:opacity-40"
+              >
+                이전
+              </button>
+              <span className="text-sm text-slate-600 px-4 font-medium">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="btn-secondary text-xs px-4 py-2 disabled:opacity-40"
+              >
+                다음
+              </button>
             </div>
           )}
         </div>

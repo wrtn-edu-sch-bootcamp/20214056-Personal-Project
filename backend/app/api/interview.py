@@ -73,9 +73,18 @@ async def start_interview(
         matcher = JobMatcherService()
         job = matcher.get_by_id(req.job_id)
 
-    session = await _agent.start_session(
-        portfolio=portfolio, job=job, interview_type=req.interview_type,
-    )
+    try:
+        session = await _agent.start_session(
+            portfolio=portfolio, job=job, interview_type=req.interview_type,
+        )
+    except Exception as e:
+        err_msg = str(e)
+        if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg or "quota" in err_msg.lower():
+            raise HTTPException(
+                status_code=429,
+                detail="AI API 사용량 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.",
+            )
+        raise HTTPException(status_code=500, detail=f"면접 시작 실패: {err_msg}")
 
     db_session = InterviewSessionModel(
         id=session.session_id,

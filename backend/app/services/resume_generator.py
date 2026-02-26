@@ -2,15 +2,15 @@
 
 Takes a PortfolioSchema + JobPosting + optional CompanyInfo and produces
 a well-structured markdown resume customised for the target position.
+
+Uses OpenAI gpt-4o-mini for generation.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 
-from google import genai
-from google.genai import types
+from openai import AsyncOpenAI
 
 from app.config import get_settings
 from app.models.schemas import CompanyInfo, JobPosting, PortfolioSchema
@@ -43,12 +43,12 @@ a polished, professional resume in **Markdown** format.
 
 
 class ResumeGeneratorService:
-    """Generates tailored markdown resumes via Gemini LLM."""
+    """Generates tailored markdown resumes via OpenAI LLM."""
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._client = genai.Client(api_key=settings.gemini_api_key)
-        self._model = settings.gemini_model
+        self._client = AsyncOpenAI(api_key=settings.openai_api_key)
+        self._model = settings.openai_model
 
     async def generate(
         self,
@@ -64,11 +64,10 @@ class ResumeGeneratorService:
         portfolio_json = portfolio.model_dump_json(indent=2, exclude_none=True)
         job_json = job.model_dump_json(indent=2, exclude_none=True)
 
-        parts: list[str] = [
-            _SYSTEM_PROMPT,
-            "\n\n--- 후보자 포트폴리오 ---",
+        user_parts: list[str] = [
+            "--- 후보자 포트폴리오 ---",
             portfolio_json,
-            "\n\n--- 대상 채용공고 ---",
+            "\n--- 대상 채용공고 ---",
             job_json,
         ]
 
@@ -76,26 +75,27 @@ class ResumeGeneratorService:
             company_json = company_info.model_dump_json(
                 indent=2, exclude={"raw_text"}, exclude_none=True
             )
-            parts.append("\n\n--- 채용 기업 정보 (인재상 · 핵심가치) ---")
-            parts.append(company_json)
+            user_parts.append("\n--- 채용 기업 정보 (인재상 · 핵심가치) ---")
+            user_parts.append(company_json)
         else:
-            parts.append(
-                "\n\n(기업 인재상 정보를 수집하지 못했습니다. "
+            user_parts.append(
+                "\n(기업 인재상 정보를 수집하지 못했습니다. "
                 "채용공고 정보만으로 이력서를 작성해 주세요.)"
             )
 
-        prompt = "\n".join(parts)
+        user_content = "\n".join(user_parts)
 
-        response = await self._client.aio.models.generate_content(
+        response = await self._client.chat.completions.create(
             model=self._model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.4,
-                max_output_tokens=4096,
-            ),
+            messages=[
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.4,
+            max_tokens=4096,
         )
 
-        markdown = response.text.strip()
+        markdown = (response.choices[0].message.content or "").strip()
         # Strip potential markdown code fences wrapping
         if markdown.startswith("```"):
             first_nl = markdown.index("\n")
