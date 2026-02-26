@@ -61,7 +61,8 @@ export function getAuthHeaders(): Record<string, string> {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const BASE = "/api";
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || "";
+const BASE = `${BACKEND}/api`;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);

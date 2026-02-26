@@ -1,11 +1,13 @@
 /**
  * API client utilities for communicating with the FastAPI backend.
- * All requests are proxied through Next.js rewrites → localhost:8000.
+ * In production, NEXT_PUBLIC_API_URL points directly to the Render backend.
+ * In local dev, Next.js rewrites proxy /api to localhost:8000.
  */
 
 import { getAuthHeaders } from "./auth";
 
-const BASE = "/api";
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || "";
+const BASE = `${BACKEND}/api`;
 
 async function request<T>(
   path: string,
