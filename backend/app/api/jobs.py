@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.database import get_db
 from app.db import crud
-from app.db.models import CompanyJobPosting, Company
+from app.db.models import CompanyJobPosting, Company, CrawledJob
 from app.models.schemas import (
     JobRecommendationResponse,
     JobPosting,
@@ -77,8 +77,8 @@ async def recommend_jobs(
 
     portfolio = PortfolioSchema.model_validate(row.portfolio_json)
 
-    # Get external + mock jobs via matcher
-    external_jobs = await _matcher.recommend(portfolio, limit=limit)
+    # Get external + crawled + mock jobs via matcher (DB session enables crawled-job lookup)
+    external_jobs = await _matcher.recommend(portfolio, limit=limit, db=db)
 
     # Get company DB jobs (unranked, embedding done separately if needed)
     company_jobs = await _fetch_company_jobs(db)
@@ -95,8 +95,8 @@ async def search_jobs(
     db: AsyncSession = Depends(get_db),
 ):
     """Keyword-based job search across external APIs and company postings."""
-    # External/mock search
-    external = await _matcher.search(q, limit=limit)
+    # External/crawled/mock search (DB session enables crawled-job lookup)
+    external = await _matcher.search(q, limit=limit, db=db)
 
     # Company DB search
     company_results = await _fetch_company_jobs(db, keyword=q)
@@ -107,8 +107,29 @@ async def search_jobs(
 
 @router.get("/{job_id}", response_model=JobPosting)
 async def get_job(job_id: str, db: AsyncSession = Depends(get_db)):
-    """Get a single job posting detail (external or company-registered)."""
-    # Check company DB first
+    """Get a single job posting detail (crawled, company-registered, or external)."""
+
+    # ── Check crawled jobs DB ──
+    if job_id.startswith("crawled-"):
+        source_id = job_id[len("crawled-"):]
+        result = await db.execute(
+            select(CrawledJob).where(CrawledJob.source_id == source_id)
+        )
+        r = result.scalar_one_or_none()
+        if r:
+            return JobPosting(
+                id=job_id,
+                title=r.title,
+                company=r.company,
+                location=r.location,
+                description=r.description,
+                requirements=r.requirements_json or [],
+                preferred=r.preferred_json or [],
+                salary=r.salary,
+                url=r.url,
+            )
+
+    # ── Check company-registered jobs DB ──
     if job_id.startswith("cjp-"):
         real_id = job_id[4:]
         result = await db.execute(
@@ -130,7 +151,7 @@ async def get_job(job_id: str, db: AsyncSession = Depends(get_db)):
                 url=None,
             )
 
-    # Fall back to external/mock
+    # ── Fall back to in-memory cache (external API / mock) ──
     job = _matcher.get_by_id(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")

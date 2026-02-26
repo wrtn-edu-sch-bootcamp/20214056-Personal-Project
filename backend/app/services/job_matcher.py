@@ -1,7 +1,7 @@
 """Job matching service.
 
 Provides:
-- Real job postings from Saramin / WorkNet APIs (falls back to mock data)
+- Job postings from DB crawled data, Saramin/WorkNet APIs (with mock fallback)
 - Embedding-based similarity matching between portfolio and job descriptions
 - Keyword search
 """
@@ -12,6 +12,7 @@ import logging
 
 import numpy as np
 from google import genai
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models.schemas import PortfolioSchema, JobPosting
@@ -190,38 +191,45 @@ class JobMatcherService:
             parts.append("Preferred: " + ", ".join(job.preferred))
         return "\n".join(parts)
 
-    async def _get_job_pool(self, keywords: str = "") -> list[JobPosting]:
-        """Fetch live jobs from APIs; fall back to mock data if both APIs are unconfigured."""
-        settings = get_settings()
-        has_live_api = bool(settings.saramin_api_key or settings.worknet_api_key)
+    async def _get_job_pool(
+        self,
+        keywords: str = "",
+        db: AsyncSession | None = None,
+    ) -> list[JobPosting]:
+        """Fetch jobs: DB crawled (priority) > API > mock data.
 
-        if has_live_api:
-            live_jobs = await fetch_all_jobs(keywords=keywords, count_each=30)
-            if live_jobs:
-                # Merge with mock data so there is always a baseline set
-                existing_ids = {j.id for j in live_jobs}
-                extra_mock = [j for j in MOCK_JOBS if j.id not in existing_ids]
-                return live_jobs + extra_mock
+        When a DB session is provided, crawled jobs are queried first.
+        API sources fill in when DB data is insufficient.
+        Mock data serves as the ultimate fallback.
+        """
+        # Attempt DB + API fetch (fetch_all_jobs handles priority internally)
+        live_jobs = await fetch_all_jobs(keywords=keywords, count_each=30, db=db)
+        if live_jobs:
+            # Merge with mock data so there is always a baseline set
+            existing_ids = {j.id for j in live_jobs}
+            extra_mock = [j for j in MOCK_JOBS if j.id not in existing_ids]
+            return live_jobs + extra_mock
 
-        # Both API keys absent or requests returned empty → use mock only
-        logger.info("No live API jobs available; using mock data only")
+        # All sources returned empty → use mock only
+        logger.info("No live or crawled jobs available; using mock data only")
         return list(MOCK_JOBS)
 
     async def recommend(
         self,
         portfolio: PortfolioSchema,
         limit: int = 10,
+        db: AsyncSession | None = None,
     ) -> list[JobPosting]:
         """Rank jobs by cosine similarity to the portfolio embedding.
 
-        Uses live API data when keys are configured, otherwise mock data.
-        Falls back to keyword-only ranking when OpenAI key is absent.
+        Priority: DB crawled data > API data > mock data.
+        Falls back to unranked list when Gemini key is absent.
         """
         settings = get_settings()
 
-        # Derive keywords from portfolio for API queries
+        # Derive keywords from portfolio for API/DB queries
         kw_hint = " ".join(portfolio.keywords[:5]) if portfolio.keywords else ""
-        pool = await self._get_job_pool(keywords=kw_hint)
+        pool = await self._get_job_pool(keywords=kw_hint, db=db)
 
         # Without Gemini key, return pool as-is (no embedding ranking)
         if not settings.gemini_api_key:
@@ -244,9 +252,14 @@ class JobMatcherService:
             results.append(job.model_copy(update={"similarity_score": round(score, 4)}))
         return results
 
-    async def search(self, keyword: str, limit: int = 10) -> list[JobPosting]:
-        """Keyword search: queries live APIs first, then filters results."""
-        live_jobs = await fetch_all_jobs(keywords=keyword, count_each=20)
+    async def search(
+        self,
+        keyword: str,
+        limit: int = 10,
+        db: AsyncSession | None = None,
+    ) -> list[JobPosting]:
+        """Keyword search: queries DB crawled data + APIs, then filters."""
+        live_jobs = await fetch_all_jobs(keywords=keyword, count_each=20, db=db)
         pool = live_jobs if live_jobs else list(MOCK_JOBS)
 
         kw = keyword.lower()

@@ -1,11 +1,12 @@
 """External job platform fetcher.
 
-Integrates two sources:
-  1. Saramin Open API  – https://oapi.saramin.co.kr/job-search
-  2. WorkNet Open API  – https://openapi.work.go.kr  (공공데이터포털 워크넷)
+Integrates three sources (priority order):
+  1. DB crawled jobs   – scraped from Saramin via saramin_crawler.py
+  2. Saramin Open API  – https://oapi.saramin.co.kr/job-search   (fallback)
+  3. WorkNet Open API  – https://openapi.work.go.kr               (fallback)
 
-Both sources are fetched concurrently and merged into a unified JobPosting list.
-Falls back to mock data when API keys are missing or requests fail.
+DB crawled data is the primary source; API sources serve as fallback
+when the DB has insufficient data.
 """
 
 from __future__ import annotations
@@ -16,8 +17,11 @@ import xml.etree.ElementTree as ET
 from typing import Any
 
 import httpx
+from sqlalchemy import select, or_, func
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.db.models import CrawledJob
 from app.models.schemas import JobPosting
 
 logger = logging.getLogger(__name__)
@@ -234,21 +238,119 @@ async def fetch_worknet(
         return []
 
 
+# ── DB Crawled Jobs ───────────────────────────────────────────
+
+
+def _crawled_to_posting(row: CrawledJob) -> JobPosting:
+    """Convert a CrawledJob ORM row into a JobPosting schema."""
+    return JobPosting(
+        id=f"crawled-{row.source_id}",
+        title=row.title,
+        company=row.company,
+        location=row.location,
+        description=row.description,
+        requirements=row.requirements_json or [],
+        preferred=row.preferred_json or [],
+        salary=row.salary,
+        url=row.url,
+    )
+
+
+async def fetch_crawled_jobs(
+    db: AsyncSession,
+    keywords: str = "",
+    limit: int = 50,
+) -> list[JobPosting]:
+    """Query active crawled jobs from DB, optionally filtering by keyword.
+
+    Uses ILIKE on title/description/company for broad keyword matching.
+    """
+    query = (
+        select(CrawledJob)
+        .where(CrawledJob.is_active == 1)
+        .order_by(CrawledJob.crawled_at.desc())
+    )
+
+    if keywords:
+        pattern = f"%{keywords}%"
+        query = query.where(
+            or_(
+                CrawledJob.title.ilike(pattern),
+                CrawledJob.description.ilike(pattern),
+                CrawledJob.company.ilike(pattern),
+            )
+        )
+
+    query = query.limit(limit)
+
+    result = await db.execute(query)
+    rows = result.scalars().all()
+    return [_crawled_to_posting(r) for r in rows]
+
+
+async def count_active_crawled_jobs(db: AsyncSession) -> int:
+    """Return the total number of active crawled jobs in DB."""
+    result = await db.execute(
+        select(func.count()).select_from(CrawledJob).where(CrawledJob.is_active == 1)
+    )
+    return result.scalar() or 0
+
+
 # ── Combined fetcher ──────────────────────────────────────────
 
 import asyncio
 
+# Minimum number of DB results considered "sufficient" to skip API fallback
+_MIN_DB_RESULTS = 10
 
-async def fetch_all_jobs(keywords: str = "", count_each: int = 20) -> list[JobPosting]:
-    """Fetch from all available sources concurrently and merge results."""
+
+async def fetch_all_jobs(
+    keywords: str = "",
+    count_each: int = 20,
+    db: AsyncSession | None = None,
+) -> list[JobPosting]:
+    """Fetch jobs with priority: DB crawled > Saramin API + WorkNet API.
+
+    If a DB session is provided and the DB has sufficient crawled data,
+    returns DB results directly without calling external APIs.
+    Falls back to API sources when DB data is insufficient.
+    """
+    # ── Priority 1: DB crawled jobs ──
+    if db is not None:
+        try:
+            db_jobs = await fetch_crawled_jobs(db, keywords=keywords, limit=count_each * 2)
+            if len(db_jobs) >= _MIN_DB_RESULTS:
+                logger.info("Returning %d crawled jobs from DB (sufficient)", len(db_jobs))
+                return db_jobs
+            elif db_jobs:
+                logger.info("DB has %d crawled jobs (below threshold); supplementing with APIs", len(db_jobs))
+            else:
+                logger.info("No crawled jobs in DB; falling through to API sources")
+        except Exception as e:
+            logger.warning("Failed to query crawled jobs from DB: %s", e)
+            db_jobs = []
+    else:
+        db_jobs = []
+
+    # ── Priority 2: External API fallback ──
     saramin_jobs, worknet_jobs = await asyncio.gather(
         fetch_saramin(keywords=keywords, count=count_each),
         fetch_worknet(keywords=keywords, count=count_each),
         return_exceptions=False,
     )
-    merged = saramin_jobs + worknet_jobs  # type: ignore[operator]
+    api_jobs = saramin_jobs + worknet_jobs  # type: ignore[operator]
+
+    # Merge: DB results first (richer data), then API results
+    # Deduplicate by title+company to avoid near-duplicates
+    seen = {(j.title.lower(), j.company.lower()) for j in db_jobs}
+    unique_api = [
+        j for j in api_jobs
+        if (j.title.lower(), j.company.lower()) not in seen
+    ]
+    merged = db_jobs + unique_api
+
     logger.info(
-        "Fetched %d jobs (saramin=%d, worknet=%d)",
-        len(merged), len(saramin_jobs), len(worknet_jobs),  # type: ignore[arg-type]
+        "Fetched %d jobs (db=%d, saramin_api=%d, worknet_api=%d)",
+        len(merged), len(db_jobs), len(saramin_jobs), len(worknet_jobs),  # type: ignore[arg-type]
     )
     return merged

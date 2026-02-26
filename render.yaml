@@ -23,3 +23,9 @@ services:
         sync: false
       - key: GITHUB_TOKEN
         sync: false
+      - key: CRAWL_ENABLED
+        value: "true"
+      - key: CRAWL_INTERVAL_HOURS
+        value: "6"
+      - key: CRAWL_KEYWORDS
+        sync: false

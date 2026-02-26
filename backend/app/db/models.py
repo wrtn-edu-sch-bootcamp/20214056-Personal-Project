@@ -91,6 +91,38 @@ class CompanyJobPosting(Base):
     company = relationship("Company", back_populates="job_postings")
 
 
+# ── Crawled Job (externally scraped postings) ─────────────────
+
+class CrawledJob(Base):
+    """Job posting crawled from external platforms (e.g. Saramin)."""
+
+    __tablename__ = "crawled_jobs"
+
+    id = Column(String(64), primary_key=True, default=_new_id)
+    # Source platform identifier: "saramin", "jobkorea", etc.
+    source = Column(String(32), nullable=False, index=True)
+    # Platform-specific unique ID to prevent duplicate inserts
+    source_id = Column(String(128), nullable=False, unique=True)
+    title = Column(String(512), nullable=False)
+    company = Column(String(255), nullable=False)
+    location = Column(String(255), nullable=True)
+    # Full job description text for high-quality embedding matching
+    description = Column(Text, nullable=True)
+    requirements_json = Column(JSONB, default=list)   # list[str]
+    preferred_json = Column(JSONB, default=list)       # list[str]
+    salary = Column(String(255), nullable=True)
+    url = Column(String(1024), nullable=True)
+    experience = Column(String(128), nullable=True)    # e.g. "3년 이상"
+    education = Column(String(128), nullable=True)     # e.g. "대졸 이상"
+    employment_type = Column(String(64), nullable=True)  # e.g. "정규직"
+    deadline = Column(String(64), nullable=True)       # e.g. "2026-03-31"
+    # Extracted tech stack tags for keyword matching
+    tech_stack_json = Column(JSONB, default=list)      # list[str]
+    crawled_at = Column(DateTime(timezone=True), default=_utcnow)
+    # 0=expired/inactive, 1=active
+    is_active = Column(Integer, default=1, index=True)
+
+
 # ── Portfolio ─────────────────────────────────────────────────
 
 class Portfolio(Base):
