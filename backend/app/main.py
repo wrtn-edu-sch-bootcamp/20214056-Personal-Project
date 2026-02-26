@@ -131,6 +131,22 @@ async def trigger_crawl():
     return {"status": "crawl_started"}
 
 
+@app.post("/api/admin/crawl/reset")
+async def reset_and_crawl():
+    """Delete ALL crawled jobs, then trigger a fresh crawl."""
+    from sqlalchemy import text as sa_text
+    from app.db.database import async_session as db_session
+    from app.services.saramin_crawler import crawl_all_keywords
+
+    async with db_session() as db:
+        result = await db.execute(sa_text("DELETE FROM crawled_jobs"))
+        deleted = result.rowcount
+        await db.commit()
+
+    asyncio.create_task(crawl_all_keywords())
+    return {"deleted": deleted, "status": "crawl_started"}
+
+
 @app.get("/api/admin/crawl/status")
 async def crawl_status():
     """Return crawled job statistics."""
