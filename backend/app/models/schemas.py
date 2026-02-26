@@ -73,6 +73,7 @@ class PortfolioResponse(BaseModel):
     id: str
     portfolio: PortfolioSchema
     raw_text: str | None = None
+    is_public: bool = False
 
 
 class PortfolioUpdateRequest(BaseModel):
@@ -176,6 +177,8 @@ class UserRegisterRequest(BaseModel):
     email: str
     password: str
     name: str
+    role: str = "candidate"  # "candidate" | "company"
+    company_name: str | None = None  # required when role="company"
 
 
 class UserLoginRequest(BaseModel):
@@ -187,12 +190,86 @@ class UserResponse(BaseModel):
     id: str
     email: str
     name: str
+    role: str = "candidate"
 
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+# ── Company ──────────────────────────────────────────────────
+
+class CompanyResponse(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    website: str | None = None
+    industry: str | None = None
+    size: str | None = None
+    logo_url: str | None = None
+
+
+class CompanyUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    website: str | None = None
+    industry: str | None = None
+    size: str | None = None
+
+
+# ── Company Job Posting ──────────────────────────────────────
+
+class CompanyJobPostingCreate(BaseModel):
+    title: str
+    description: str | None = None
+    requirements: list[str] = Field(default_factory=list)
+    preferred: list[str] = Field(default_factory=list)
+    location: str | None = None
+    salary: str | None = None
+    status: str = "published"
+
+
+class CompanyJobPostingUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    requirements: list[str] | None = None
+    preferred: list[str] | None = None
+    location: str | None = None
+    salary: str | None = None
+
+
+class CompanyJobPostingResponse(BaseModel):
+    id: str
+    company_id: str
+    company_name: str | None = None
+    title: str
+    description: str | None = None
+    requirements: list[str] = Field(default_factory=list)
+    preferred: list[str] = Field(default_factory=list)
+    location: str | None = None
+    salary: str | None = None
+    status: str = "published"
+    created_at: str
+    updated_at: str | None = None
+
+
+# ── Candidate Match (company-side) ───────────────────────────
+
+class CandidateMatchItem(BaseModel):
+    rank: int
+    portfolio_id: str
+    user_name: str | None = None
+    summary: str | None = None
+    skills: list[str] = Field(default_factory=list)
+    similarity_score: float
+
+
+class CandidateMatchResponse(BaseModel):
+    job_id: str
+    candidates: list[CandidateMatchItem]
+    total: int
 
 
 class PortfolioListResponse(BaseModel):

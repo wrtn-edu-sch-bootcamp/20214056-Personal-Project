@@ -80,6 +80,7 @@ export interface PortfolioResponse {
   id: string;
   portfolio: PortfolioSchema;
   raw_text?: string | null;
+  is_public?: boolean;
 }
 
 export interface PortfolioListResponse {
@@ -320,4 +321,122 @@ export async function downloadResumePdf(resumeId: string): Promise<void> {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// ── Portfolio Visibility ────────────────────────────────────
+
+export async function togglePortfolioVisibility(id: string): Promise<{ id: string; is_public: boolean }> {
+  const authHeaders = getAuthHeaders();
+  const res = await fetch(`${BASE}/portfolio/${id}/visibility`, {
+    method: "PATCH",
+    headers: authHeaders,
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+// ── Company ─────────────────────────────────────────────────
+
+export interface CompanyProfile {
+  id: string;
+  name: string;
+  description?: string | null;
+  website?: string | null;
+  industry?: string | null;
+  size?: string | null;
+  logo_url?: string | null;
+}
+
+export async function getMyCompany(): Promise<CompanyProfile> {
+  return request<CompanyProfile>("/company/me");
+}
+
+export async function updateMyCompany(data: Partial<CompanyProfile>): Promise<CompanyProfile> {
+  return request<CompanyProfile>("/company/me", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+// ── Company Job Postings ────────────────────────────────────
+
+export interface CompanyJobPosting {
+  id: string;
+  company_id: string;
+  company_name?: string | null;
+  title: string;
+  description?: string | null;
+  requirements: string[];
+  preferred: string[];
+  location?: string | null;
+  salary?: string | null;
+  status: string;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export async function createCompanyJob(data: {
+  title: string;
+  description?: string;
+  requirements?: string[];
+  preferred?: string[];
+  location?: string;
+  salary?: string;
+}): Promise<CompanyJobPosting> {
+  return request<CompanyJobPosting>("/company/jobs", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function listCompanyJobs(): Promise<CompanyJobPosting[]> {
+  return request<CompanyJobPosting[]>("/company/jobs");
+}
+
+export async function updateCompanyJob(id: string, data: Record<string, unknown>): Promise<CompanyJobPosting> {
+  return request<CompanyJobPosting>(`/company/jobs/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCompanyJob(id: string): Promise<void> {
+  const authHeaders = getAuthHeaders();
+  const res = await fetch(`${BASE}/company/jobs/${id}`, { method: "DELETE", headers: authHeaders });
+  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+}
+
+export async function changeJobStatus(id: string, newStatus: string): Promise<CompanyJobPosting> {
+  return request<CompanyJobPosting>(`/company/jobs/${id}/status?new_status=${newStatus}`, {
+    method: "PATCH",
+  });
+}
+
+// ── Candidate Matching (Company side) ───────────────────────
+
+export interface CandidateMatchItem {
+  rank: number;
+  portfolio_id: string;
+  user_name?: string | null;
+  summary?: string | null;
+  skills: string[];
+  similarity_score: number;
+}
+
+export interface CandidateMatchResponse {
+  job_id: string;
+  candidates: CandidateMatchItem[];
+  total: number;
+}
+
+export async function matchCandidates(jobId: string, limit = 20): Promise<CandidateMatchResponse> {
+  return request<CandidateMatchResponse>(`/company/candidates/match?job_id=${jobId}&limit=${limit}`);
+}
+
+export async function searchCandidates(q: string, limit = 20): Promise<{ results: CandidateMatchItem[]; total: number }> {
+  return request<{ results: CandidateMatchItem[]; total: number }>(`/company/candidates/search?q=${encodeURIComponent(q)}&limit=${limit}`);
+}
+
+export async function getPublicPortfolio(portfolioId: string): Promise<PortfolioResponse> {
+  return request<PortfolioResponse>(`/company/candidates/${portfolioId}`);
 }

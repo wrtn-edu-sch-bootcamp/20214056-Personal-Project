@@ -85,3 +85,33 @@ async def get_optional_user(
     if user_id is None:
         return None
     return await db.get(User, user_id)
+
+
+# ── Role-based access control ────────────────────────────────
+
+def require_role(*allowed_roles: str):
+    """Return a FastAPI dependency that checks the user has one of the allowed roles.
+
+    Usage:
+        @router.get("/company-only", dependencies=[Depends(require_role("company"))])
+        async def my_endpoint(user: User = Depends(get_current_user)): ...
+    """
+    async def _checker(
+        creds: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        if creds is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        user_id = _decode_token(creds.credentials)
+        if user_id is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        user = await db.get(User, user_id)
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        if user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role '{user.role}' is not allowed. Required: {', '.join(allowed_roles)}",
+            )
+        return user
+    return _checker

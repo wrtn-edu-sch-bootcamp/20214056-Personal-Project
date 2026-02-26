@@ -11,6 +11,7 @@ import {
   listResumes,
   listInterviewSessions,
   downloadResumePdf,
+  togglePortfolioVisibility,
   type PortfolioResponse,
   type ResumeListItem,
   type InterviewSessionListItem,
@@ -26,10 +27,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Redirect to login if not authenticated
+  // Redirect: login if not authenticated, company dashboard if company role
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (authLoading) return;
+    if (!user) {
       router.push("/login");
+    } else if (user.role === "company") {
+      router.replace("/company/dashboard");
     }
   }, [authLoading, user, router]);
 
@@ -69,6 +73,17 @@ export default function DashboardPage() {
       setPortfolios((prev) => prev.filter((p) => p.id !== id));
     } catch (err: any) {
       alert(err.message || "삭제 실패");
+    }
+  };
+
+  const handleToggleVisibility = async (id: string) => {
+    try {
+      const result = await togglePortfolioVisibility(id);
+      setPortfolios((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, is_public: result.is_public } : p))
+      );
+    } catch (err: any) {
+      alert(err.message || "공개 설정 변경 실패");
     }
   };
 
@@ -129,6 +144,7 @@ export default function DashboardPage() {
                       key={pf.id}
                       portfolio={pf}
                       onDelete={handleDeletePortfolio}
+                      onToggleVisibility={handleToggleVisibility}
                     />
                   ))}
                 </div>
@@ -178,9 +194,11 @@ export default function DashboardPage() {
 function PortfolioCard({
   portfolio,
   onDelete,
+  onToggleVisibility,
 }: {
   portfolio: PortfolioResponse;
   onDelete: (id: string) => void;
+  onToggleVisibility: (id: string) => void;
 }) {
   const pf = portfolio.portfolio;
   const skills = pf.skills.slice(0, 6).map((s) => s.name);
@@ -194,6 +212,18 @@ function PortfolioCard({
             <p className="text-sm text-gray-500 mt-1 line-clamp-2">{pf.summary}</p>
           )}
         </div>
+        {/* Visibility toggle */}
+        <button
+          onClick={() => onToggleVisibility(portfolio.id)}
+          className={`shrink-0 ml-2 text-xs px-2 py-1 rounded-full font-medium transition-colors ${
+            portfolio.is_public
+              ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+          }`}
+          title={portfolio.is_public ? "기업에 공개 중" : "비공개 상태"}
+        >
+          {portfolio.is_public ? "공개" : "비공개"}
+        </button>
       </div>
 
       {skills.length > 0 && (

@@ -6,12 +6,15 @@ import { useAuth } from "@/lib/auth";
 import Navigation from "@/components/Navigation";
 
 type Tab = "login" | "register";
+type Role = "candidate" | "company";
 
 export default function LoginPage() {
   const [tab, setTab] = useState<Tab>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [role, setRole] = useState<Role>("candidate");
+  const [companyName, setCompanyName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -24,17 +27,23 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      let loggedInUser;
       if (tab === "login") {
-        await login(email, password);
+        loggedInUser = await login(email, password);
       } else {
         if (!name.trim()) {
           setError("이름을 입력하세요.");
           setLoading(false);
           return;
         }
-        await register(email, password, name);
+        if (role === "company" && !companyName.trim()) {
+          setError("회사명을 입력하세요.");
+          setLoading(false);
+          return;
+        }
+        loggedInUser = await register(email, password, name, role, role === "company" ? companyName : undefined);
       }
-      router.push("/dashboard");
+      router.push(loggedInUser.role === "company" ? "/company/dashboard" : "/dashboard");
     } catch (err: any) {
       setError(err.message || "오류가 발생했습니다.");
     } finally {
@@ -73,19 +82,72 @@ export default function LoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            {/* Role selection — register only */}
             {tab === "register" && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">이름</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">가입 유형</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole("candidate")}
+                    className={`p-3 rounded-lg border-2 text-center transition ${
+                      role === "candidate"
+                        ? "border-primary-500 bg-primary-50 text-primary-700"
+                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="text-lg mb-1">👤</div>
+                    <div className="text-sm font-semibold">구직자</div>
+                    <div className="text-xs text-gray-500 mt-0.5">포트폴리오 등록 및 채용 추천</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole("company")}
+                    className={`p-3 rounded-lg border-2 text-center transition ${
+                      role === "company"
+                        ? "border-primary-500 bg-primary-50 text-primary-700"
+                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="text-lg mb-1">🏢</div>
+                    <div className="text-sm font-semibold">기업</div>
+                    <div className="text-xs text-gray-500 mt-0.5">공고 등록 및 인재 매칭</div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {tab === "register" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  {role === "company" ? "담당자 이름" : "이름"}
+                </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  placeholder="홍길동"
+                  placeholder={role === "company" ? "김채용" : "홍길동"}
                   required
                 />
               </div>
             )}
+
+            {/* Company name — company role only */}
+            {tab === "register" && role === "company" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">회사명</label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  placeholder="주식회사 테크스타트업"
+                  required
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">이메일</label>
               <input
@@ -125,6 +187,8 @@ export default function LoginPage() {
                 ? "처리 중..."
                 : tab === "login"
                 ? "로그인"
+                : role === "company"
+                ? "기업 회원가입"
                 : "회원가입"}
             </button>
           </form>

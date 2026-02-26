@@ -15,14 +15,15 @@ export interface UserInfo {
   id: string;
   email: string;
   name: string;
+  role: string; // "candidate" | "company"
 }
 
 interface AuthContextValue {
   user: UserInfo | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<UserInfo>;
+  register: (email: string, password: string, name: string, role?: string, companyName?: string) => Promise<UserInfo>;
   logout: () => void;
 }
 
@@ -77,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<UserInfo> => {
     const res = await fetch(`${BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -91,13 +92,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveAuth(data.access_token, data.user);
     setToken(data.access_token);
     setUser(data.user);
+    return data.user as UserInfo;
   }, []);
 
-  const register = useCallback(async (email: string, password: string, name: string) => {
+  const register = useCallback(async (email: string, password: string, name: string, role = "candidate", companyName?: string): Promise<UserInfo> => {
     const res = await fetch(`${BASE}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, name, role, company_name: companyName || null }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -107,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveAuth(data.access_token, data.user);
     setToken(data.access_token);
     setUser(data.user);
+    return data.user as UserInfo;
   }, []);
 
   const logout = useCallback(() => {

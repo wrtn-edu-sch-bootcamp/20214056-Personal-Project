@@ -33,6 +33,7 @@ def _to_response(row) -> PortfolioResponse:
         id=row.id,
         portfolio=PortfolioSchema.model_validate(row.portfolio_json),
         raw_text=row.raw_text,
+        is_public=bool(row.is_public),
     )
 
 
@@ -140,6 +141,24 @@ async def manual_input(
     """Accept free-form text and extract structured data."""
     portfolio = await _parser.structure_with_llm(req.text)
     return await _save_portfolio(db, portfolio, req.text, user)
+
+
+@router.patch("/{portfolio_id}/visibility")
+async def toggle_visibility(
+    portfolio_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle portfolio public/private visibility for company access."""
+    row = await crud.get_portfolio(db, portfolio_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    if row.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your portfolio")
+    row.is_public = 0 if row.is_public else 1
+    await db.commit()
+    await db.refresh(row)
+    return {"id": row.id, "is_public": bool(row.is_public)}
 
 
 @router.put("/{portfolio_id}", response_model=PortfolioResponse)

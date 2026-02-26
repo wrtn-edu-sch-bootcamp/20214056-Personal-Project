@@ -58,16 +58,16 @@ export default function HomePage() {
             {user ? (
               <>
                 <Link
-                  href="/dashboard"
+                  href={user.role === "company" ? "/company/dashboard" : "/dashboard"}
                   className="px-8 py-3 bg-white text-primary-700 font-semibold rounded-lg shadow hover:bg-primary-50 transition text-center"
                 >
                   대시보드
                 </Link>
                 <Link
-                  href="/portfolio"
+                  href={user.role === "company" ? "/company/jobs" : "/portfolio"}
                   className="px-8 py-3 border-2 border-white/50 text-white font-semibold rounded-lg hover:bg-white/10 transition text-center"
                 >
-                  포트폴리오 등록
+                  {user.role === "company" ? "공고 관리" : "포트폴리오 등록"}
                 </Link>
               </>
             ) : (

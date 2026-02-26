@@ -28,8 +28,10 @@ def _new_id() -> str:
     return uuid.uuid4().hex
 
 
+# ── User ──────────────────────────────────────────────────────
+
 class User(Base):
-    """Application user account."""
+    """Application user account — either a candidate or a company."""
 
     __tablename__ = "users"
 
@@ -37,12 +39,59 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
     name = Column(String(128), nullable=False)
-    oauth_provider = Column(String(32), nullable=True)   # "google" | "github" | null
+    role = Column(String(16), nullable=False, default="candidate")  # "candidate" | "company"
+    oauth_provider = Column(String(32), nullable=True)
     oauth_id = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow)
 
     portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
+    company = relationship("Company", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
+
+# ── Company (1:1 with User where role='company') ─────────────
+
+class Company(Base):
+    """Company profile linked to a company-role user account."""
+
+    __tablename__ = "companies"
+
+    id = Column(String(64), primary_key=True, default=_new_id)
+    user_id = Column(String(64), ForeignKey("users.id"), unique=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    website = Column(String(512), nullable=True)
+    industry = Column(String(128), nullable=True)
+    size = Column(String(64), nullable=True)   # e.g. "1-50", "51-200", "201-1000", "1000+"
+    logo_url = Column(String(512), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+
+    user = relationship("User", back_populates="company")
+    job_postings = relationship("CompanyJobPosting", back_populates="company", cascade="all, delete-orphan")
+
+
+# ── Company Job Posting (DB-stored postings by companies) ────
+
+class CompanyJobPosting(Base):
+    """A job posting created directly by a company user."""
+
+    __tablename__ = "company_job_postings"
+
+    id = Column(String(64), primary_key=True, default=_new_id)
+    company_id = Column(String(64), ForeignKey("companies.id"), nullable=False, index=True)
+    title = Column(String(512), nullable=False)
+    description = Column(Text, nullable=True)
+    requirements_json = Column(JSONB, default=list)   # list[str]
+    preferred_json = Column(JSONB, default=list)       # list[str]
+    location = Column(String(255), nullable=True)
+    salary = Column(String(255), nullable=True)
+    status = Column(String(16), nullable=False, default="published")  # "draft" | "published" | "closed"
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    company = relationship("Company", back_populates="job_postings")
+
+
+# ── Portfolio ─────────────────────────────────────────────────
 
 class Portfolio(Base):
     """Stores parsed portfolio data and raw text."""
@@ -53,6 +102,7 @@ class Portfolio(Base):
     user_id = Column(String(64), ForeignKey("users.id"), nullable=True, index=True)
     portfolio_json = Column(JSONB, nullable=False)
     raw_text = Column(Text, nullable=True)
+    is_public = Column(Integer, default=0)  # 0=private, 1=visible to companies
     created_at = Column(DateTime(timezone=True), default=_utcnow)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -60,6 +110,8 @@ class Portfolio(Base):
     resumes = relationship("Resume", back_populates="portfolio", cascade="all, delete-orphan")
     interview_sessions = relationship("InterviewSession", back_populates="portfolio", cascade="all, delete-orphan")
 
+
+# ── Resume ────────────────────────────────────────────────────
 
 class Resume(Base):
     """Stores generated tailored resumes."""
@@ -77,6 +129,8 @@ class Resume(Base):
 
     portfolio = relationship("Portfolio", back_populates="resumes")
 
+
+# ── Interview ─────────────────────────────────────────────────
 
 class InterviewSession(Base):
     """Stores interview simulation sessions."""

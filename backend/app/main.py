@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.api import auth, portfolio, jobs, interview, resume
+from app.api import auth, portfolio, jobs, interview, resume, company, company_candidates
 from app.db.database import engine, Base
 
 settings = get_settings()
@@ -44,6 +44,8 @@ app.include_router(portfolio.router)
 app.include_router(jobs.router)
 app.include_router(interview.router)
 app.include_router(resume.router)
+app.include_router(company.router)
+app.include_router(company_candidates.router)
 
 
 @app.get("/health")
