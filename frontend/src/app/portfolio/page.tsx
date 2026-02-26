@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
+import AuthGuard from "@/components/AuthGuard";
 import {
   submitPortfolioText,
   submitPortfolioUrl,
@@ -74,21 +75,22 @@ export default function PortfolioPage() {
   };
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      <div className="max-w-4xl mx-auto px-4 py-10">
-        <h1 className="text-3xl font-bold text-gray-900">포트폴리오 입력</h1>
-        <p className="mt-2 text-gray-600">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">포트폴리오 입력</h1>
+        <p className="mt-2 text-sm sm:text-base text-gray-600">
           아래 방식 중 하나로 포트폴리오를 입력하면 AI가 자동으로 분석합니다.
         </p>
 
-        {/* Tabs */}
-        <div className="mt-8 flex border-b border-gray-200">
+        {/* Tabs — horizontally scrollable on mobile */}
+        <div className="mt-6 sm:mt-8 flex overflow-x-auto border-b border-gray-200 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => { setActiveTab(tab.key); setResult(null); setError(null); }}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition ${
+              className={`px-4 sm:px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition ${
                 activeTab === tab.key
                   ? "border-primary-600 text-primary-600"
                   : "border-transparent text-gray-500 hover:text-gray-700"
@@ -199,6 +201,7 @@ export default function PortfolioPage() {
         {result && <PortfolioPreview data={result} onNext={goToJobs} />}
       </div>
     </div>
+    </AuthGuard>
   );
 }
 
@@ -212,12 +215,12 @@ function PortfolioPreview({
   const p: PortfolioSchema = data.portfolio;
 
   return (
-    <div className="mt-10">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">분석 결과</h2>
+    <div className="mt-8 sm:mt-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">분석 결과</h2>
         <button
           onClick={onNext}
-          className="px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition"
+          className="px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition text-sm sm:text-base w-full sm:w-auto"
         >
           채용 추천 받기 &rarr;
         </button>

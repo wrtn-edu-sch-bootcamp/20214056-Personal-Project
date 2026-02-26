@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
+import AuthGuard from "@/components/AuthGuard";
 import {
   startInterview,
   submitAnswer,
@@ -108,11 +109,12 @@ function InterviewContent() {
   // Pre-interview setup screen
   if (!sessionId) {
     return (
+      <AuthGuard>
       <div className="min-h-screen bg-gray-50">
         <Navigation />
-        <div className="max-w-2xl mx-auto px-4 py-10">
-          <h1 className="text-3xl font-bold text-gray-900">면접 시뮬레이션</h1>
-          <p className="mt-2 text-gray-600">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">면접 시뮬레이션</h1>
+          <p className="mt-2 text-sm sm:text-base text-gray-600">
             AI 면접관이 포트폴리오와 채용공고에 맞춰 면접을 진행합니다.
           </p>
 
@@ -133,7 +135,7 @@ function InterviewContent() {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 면접 유형 선택
               </h2>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {(
                   [
                     { key: "technical", label: "기술 면접", desc: "기술적 깊이 질문" },
@@ -173,19 +175,21 @@ function InterviewContent() {
           )}
         </div>
       </div>
+      </AuthGuard>
     );
   }
 
   // Chat interface
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navigation />
 
       {/* Evaluation modal */}
       {evaluation && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-8 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-lg w-full p-6 sm:p-8 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
               면접 종합 평가
             </h2>
             {evaluation.score != null && (
@@ -238,7 +242,7 @@ function InterviewContent() {
 
       {/* Chat area */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4">
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -247,7 +251,7 @@ function InterviewContent() {
               }`}
             >
               <div
-                className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                className={`max-w-[85%] sm:max-w-[80%] px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                   msg.role === "candidate"
                     ? "bg-primary-600 text-white rounded-br-md"
                     : "bg-white text-gray-800 border border-gray-200 rounded-bl-md shadow-sm"
@@ -273,8 +277,8 @@ function InterviewContent() {
       </div>
 
       {/* Input bar */}
-      <div className="bg-white border-t border-gray-200 px-4 py-4">
-        <div className="max-w-3xl mx-auto flex gap-3">
+      <div className="bg-white border-t border-gray-200 px-3 sm:px-4 py-3 sm:py-4">
+        <div className="max-w-3xl mx-auto flex gap-2 sm:gap-3">
           {!finished ? (
             <>
               <input
@@ -284,29 +288,29 @@ function InterviewContent() {
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                 placeholder="답변을 입력하세요..."
                 disabled={loading}
-                className="flex-1 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50"
+                className="flex-1 min-w-0 border border-gray-300 rounded-lg p-2.5 sm:p-3 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50"
               />
               <button
                 onClick={handleSend}
                 disabled={loading || !input.trim()}
-                className="px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition"
+                className="px-3 sm:px-6 py-2.5 sm:py-3 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition shrink-0"
               >
                 전송
               </button>
               <button
                 onClick={handleEnd}
                 disabled={loading}
-                className="px-4 py-3 border border-gray-300 text-gray-600 font-medium rounded-lg hover:bg-gray-50 transition"
+                className="px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition shrink-0"
               >
                 종료
               </button>
             </>
           ) : (
-            <div className="flex-1 flex gap-3">
+            <div className="flex-1 flex gap-2 sm:gap-3">
               <button
                 onClick={handleEnd}
                 disabled={loading || !!evaluation}
-                className="flex-1 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition"
+                className="flex-1 py-2.5 sm:py-3 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition"
               >
                 {evaluation ? "평가 완료" : "종합 평가 받기"}
               </button>
@@ -317,7 +321,7 @@ function InterviewContent() {
                   setFinished(false);
                   setEvaluation(null);
                 }}
-                className="px-6 py-3 border border-gray-300 text-gray-600 font-medium rounded-lg hover:bg-gray-50 transition"
+                className="px-4 sm:px-6 py-2.5 sm:py-3 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition shrink-0"
               >
                 새 면접
               </button>
@@ -326,5 +330,6 @@ function InterviewContent() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
+import AuthGuard from "@/components/AuthGuard";
 import {
   getRecommendedJobs,
   searchJobs,
@@ -83,18 +84,19 @@ function JobsContent() {
   };
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        <h1 className="text-3xl font-bold text-gray-900">채용 공고 추천</h1>
-        <p className="mt-2 text-gray-600">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">채용 공고 추천</h1>
+        <p className="mt-2 text-sm sm:text-base text-gray-600">
           {portfolioId
             ? "포트폴리오 기반으로 추천된 채용공고입니다."
             : "포트폴리오를 먼저 입력하면 맞춤 추천을 받을 수 있습니다."}
         </p>
 
         {/* Search bar */}
-        <div className="mt-6 flex gap-3">
+        <div className="mt-6 flex flex-col sm:flex-row gap-2 sm:gap-3">
           <input
             type="text"
             value={keyword}
@@ -103,20 +105,22 @@ function JobsContent() {
             placeholder="키워드로 검색 (예: Python, 프론트엔드)"
             className="flex-1 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
-          <button
-            onClick={handleSearch}
-            className="px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition"
-          >
-            검색
-          </button>
-          {portfolioId && (
+          <div className="flex gap-2">
             <button
-              onClick={() => { setMode("recommend"); loadRecommendations(); }}
-              className="px-6 py-3 border border-primary-300 text-primary-600 font-medium rounded-lg hover:bg-primary-50 transition"
+              onClick={handleSearch}
+              className="flex-1 sm:flex-none px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition text-sm"
             >
-              추천 보기
+              검색
             </button>
-          )}
+            {portfolioId && (
+              <button
+                onClick={() => { setMode("recommend"); loadRecommendations(); }}
+                className="flex-1 sm:flex-none px-4 sm:px-6 py-3 border border-primary-300 text-primary-600 font-medium rounded-lg hover:bg-primary-50 transition text-sm"
+              >
+                추천 보기
+              </button>
+            )}
+          </div>
         </div>
 
         {!portfolioId && (
@@ -151,81 +155,78 @@ function JobsContent() {
             {jobs.map((job) => (
               <div
                 key={job.id}
-                className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-primary-200 transition"
+                className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 hover:border-primary-200 transition"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {job.title}
-                      </h3>
-                      {job.similarity_score != null && (
-                        <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded-full">
-                          매칭 {(job.similarity_score * 100).toFixed(0)}%
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {job.company}
-                      {job.location && ` · ${job.location}`}
-                    </p>
-                    {job.description && (
-                      <p className="text-sm text-gray-600 mt-3 line-clamp-2">
-                        {job.description}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {job.requirements.map((r, i) => (
-                        <span
-                          key={i}
-                          className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded"
-                        >
-                          {r}
-                        </span>
-                      ))}
-                      {job.preferred.map((p, i) => (
-                        <span
-                          key={`p-${i}`}
-                          className="text-xs bg-primary-50 text-primary-600 px-2 py-0.5 rounded"
-                        >
-                          {p}
-                        </span>
-                      ))}
-                    </div>
-                    {job.salary && (
-                      <p className="text-sm text-gray-500 mt-2">
-                        {job.salary}
-                      </p>
-                    )}
-                  </div>
-                  <div className="ml-4 flex flex-col gap-2">
-                    {portfolioId && (
-                      <>
-                        <button
-                          onClick={() => generateResume(job.id)}
-                          className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition whitespace-nowrap"
-                        >
-                          맞춤 이력서
-                        </button>
-                        <button
-                          onClick={() => startInterview(job.id)}
-                          className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition whitespace-nowrap"
-                        >
-                          면접 연습
-                        </button>
-                      </>
-                    )}
-                    {job.url && (
-                      <a
-                        href={job.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition text-center"
+                {/* Title + badge */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                    {job.title}
+                  </h3>
+                  {job.similarity_score != null && (
+                    <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-medium rounded-full">
+                      매칭 {(job.similarity_score * 100).toFixed(0)}%
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  {job.company}
+                  {job.location && ` · ${job.location}`}
+                </p>
+                {job.description && (
+                  <p className="text-sm text-gray-600 mt-2 sm:mt-3 line-clamp-2">
+                    {job.description}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-1.5 mt-2 sm:mt-3">
+                  {job.requirements.map((r, i) => (
+                    <span
+                      key={i}
+                      className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded"
+                    >
+                      {r}
+                    </span>
+                  ))}
+                  {job.preferred.map((p, i) => (
+                    <span
+                      key={`p-${i}`}
+                      className="text-xs bg-primary-50 text-primary-600 px-2 py-0.5 rounded"
+                    >
+                      {p}
+                    </span>
+                  ))}
+                </div>
+                {job.salary && (
+                  <p className="text-sm text-gray-500 mt-2">{job.salary}</p>
+                )}
+
+                {/* Action buttons — always below content on mobile */}
+                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+                  {portfolioId && (
+                    <>
+                      <button
+                        onClick={() => generateResume(job.id)}
+                        className="px-3 sm:px-4 py-2 bg-emerald-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-emerald-700 transition"
                       >
-                        공고 보기
-                      </a>
-                    )}
-                  </div>
+                        맞춤 이력서
+                      </button>
+                      <button
+                        onClick={() => startInterview(job.id)}
+                        className="px-3 sm:px-4 py-2 bg-primary-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-primary-700 transition"
+                      >
+                        면접 연습
+                      </button>
+                    </>
+                  )}
+                  {job.url && (
+                    <a
+                      href={job.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 sm:px-4 py-2 border border-gray-300 text-gray-600 text-xs sm:text-sm font-medium rounded-lg hover:bg-gray-50 transition"
+                    >
+                      공고 보기
+                    </a>
+                  )}
                 </div>
               </div>
             ))}
@@ -239,5 +240,6 @@ function JobsContent() {
         )}
       </div>
     </div>
+    </AuthGuard>
   );
 }

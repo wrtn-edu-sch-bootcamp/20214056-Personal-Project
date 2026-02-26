@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.schemas import JobRecommendationResponse, JobPosting
+from app.db.database import get_db
+from app.db import crud
+from app.models.schemas import (
+    JobRecommendationResponse,
+    JobPosting,
+    PortfolioSchema,
+)
 from app.services.job_matcher import JobMatcherService
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
-
 _matcher = JobMatcherService()
 
 
@@ -16,16 +22,15 @@ _matcher = JobMatcherService()
 async def recommend_jobs(
     portfolio_id: str = Query(..., description="ID of the parsed portfolio"),
     limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
 ):
     """Return job postings ranked by similarity to the portfolio."""
-    # Retrieve portfolio from in-memory store (shared with portfolio router)
-    from app.api.portfolio import _store as portfolio_store
-    portfolio_resp = portfolio_store.get(portfolio_id)
-    if portfolio_resp is None:
-        from fastapi import HTTPException
+    row = await crud.get_portfolio(db, portfolio_id)
+    if row is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
 
-    jobs = await _matcher.recommend(portfolio_resp.portfolio, limit=limit)
+    portfolio = PortfolioSchema.model_validate(row.portfolio_json)
+    jobs = await _matcher.recommend(portfolio, limit=limit)
     return JobRecommendationResponse(jobs=jobs, total=len(jobs))
 
 
@@ -44,6 +49,5 @@ async def get_job(job_id: str):
     """Get a single job posting detail."""
     job = _matcher.get_by_id(job_id)
     if job is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Job not found")
     return job

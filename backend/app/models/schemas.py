@@ -168,3 +168,51 @@ class ResumeResponse(BaseModel):
     markdown_content: str
     company_info: CompanyInfo | None = None
     crawl_success: bool = True
+
+
+# ── Auth ──────────────────────────────────────────────────────
+
+class UserRegisterRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+class PortfolioListResponse(BaseModel):
+    portfolios: list[PortfolioResponse]
+    total: int
+
+
+class ResumeListItem(BaseModel):
+    id: str
+    job_id: str | None = None
+    company_name: str | None = None
+    crawl_success: bool = True
+    created_at: str
+
+
+class InterviewSessionListItem(BaseModel):
+    id: str
+    job_id: str | None = None
+    interview_type: str = "technical"
+    score: float | None = None
+    overall_feedback: str | None = None
+    created_at: str
+    finished_at: str | None = None

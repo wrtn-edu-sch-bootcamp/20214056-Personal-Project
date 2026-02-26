@@ -3,15 +3,22 @@
  * All requests are proxied through Next.js rewrites → localhost:8000.
  */
 
+import { getAuthHeaders } from "./auth";
+
 const BASE = "/api";
 
 async function request<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
+  const authHeaders = getAuthHeaders();
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options?.headers as Record<string, string>) },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders,
+      ...(options?.headers as Record<string, string>),
+    },
   });
   if (!res.ok) {
     const body = await res.text();
@@ -75,6 +82,11 @@ export interface PortfolioResponse {
   raw_text?: string | null;
 }
 
+export interface PortfolioListResponse {
+  portfolios: PortfolioResponse[];
+  total: number;
+}
+
 export async function submitPortfolioText(text: string): Promise<PortfolioResponse> {
   return request<PortfolioResponse>("/portfolio/manual", {
     method: "POST",
@@ -97,9 +109,14 @@ export async function submitPortfolioGitHub(username: string): Promise<Portfolio
 }
 
 export async function uploadPortfolioPdf(file: File): Promise<PortfolioResponse> {
+  const authHeaders = getAuthHeaders();
   const formData = new FormData();
   formData.append("file", file);
-  const res = await fetch(`${BASE}/portfolio/upload`, { method: "POST", body: formData });
+  const res = await fetch(`${BASE}/portfolio/upload`, {
+    method: "POST",
+    body: formData,
+    headers: authHeaders,
+  });
   if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -116,6 +133,19 @@ export async function updatePortfolio(
 
 export async function getPortfolio(id: string): Promise<PortfolioResponse> {
   return request<PortfolioResponse>(`/portfolio/${id}`);
+}
+
+export async function listPortfolios(): Promise<PortfolioListResponse> {
+  return request<PortfolioListResponse>("/portfolio");
+}
+
+export async function deletePortfolio(id: string): Promise<void> {
+  const authHeaders = getAuthHeaders();
+  const res = await fetch(`${BASE}/portfolio/${id}`, {
+    method: "DELETE",
+    headers: authHeaders,
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
 }
 
 // ── Jobs ────────────────────────────────────────────────────
@@ -182,6 +212,16 @@ export interface InterviewMessage {
   content: string;
 }
 
+export interface InterviewSessionListItem {
+  id: string;
+  job_id?: string | null;
+  interview_type: string;
+  score?: number | null;
+  overall_feedback?: string | null;
+  created_at: string;
+  finished_at?: string | null;
+}
+
 export async function startInterview(
   portfolioId: string,
   jobId?: string,
@@ -216,6 +256,10 @@ export async function endInterview(
   });
 }
 
+export async function listInterviewSessions(): Promise<InterviewSessionListItem[]> {
+  return request<InterviewSessionListItem[]>("/interview/list");
+}
+
 // ── Resume ─────────────────────────────────────────────────
 
 export interface CompanyInfo {
@@ -230,6 +274,14 @@ export interface ResumeResponse {
   markdown_content: string;
   company_info?: CompanyInfo | null;
   crawl_success: boolean;
+}
+
+export interface ResumeListItem {
+  id: string;
+  job_id?: string | null;
+  company_name?: string | null;
+  crawl_success: boolean;
+  created_at: string;
 }
 
 export async function generateResume(
@@ -251,8 +303,13 @@ export async function getResume(resumeId: string): Promise<ResumeResponse> {
   return request<ResumeResponse>(`/resume/${resumeId}`);
 }
 
+export async function listResumes(): Promise<ResumeListItem[]> {
+  return request<ResumeListItem[]>("/resume/list");
+}
+
 export async function downloadResumePdf(resumeId: string): Promise<void> {
-  const res = await fetch(`${BASE}/resume/${resumeId}/pdf`);
+  const authHeaders = getAuthHeaders();
+  const res = await fetch(`${BASE}/resume/${resumeId}/pdf`, { headers: authHeaders });
   if (!res.ok) throw new Error(`PDF download failed: ${res.status}`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

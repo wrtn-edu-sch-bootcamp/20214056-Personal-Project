@@ -5,9 +5,11 @@ import { useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Navigation from "@/components/Navigation";
+import AuthGuard from "@/components/AuthGuard";
 import {
   generateResume,
   downloadResumePdf,
+  getResume,
   type ResumeResponse,
 } from "@/lib/api";
 
@@ -23,6 +25,7 @@ function ResumeContent() {
   const searchParams = useSearchParams();
   const portfolioId = searchParams.get("portfolio_id");
   const jobId = searchParams.get("job_id");
+  const resumeId = searchParams.get("resume_id");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +33,27 @@ function ResumeContent() {
   const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
-    if (portfolioId && jobId && !result) {
+    if (resumeId && !result) {
+      loadExistingResume();
+    } else if (portfolioId && jobId && !result) {
       handleGenerate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [portfolioId, jobId]);
+  }, [portfolioId, jobId, resumeId]);
+
+  const loadExistingResume = async () => {
+    if (!resumeId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await getResume(resumeId);
+      setResult(resp);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "이력서 조회에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!portfolioId || !jobId) return;
@@ -63,11 +82,12 @@ function ResumeContent() {
   };
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      <div className="max-w-4xl mx-auto px-4 py-10">
-        <h1 className="text-3xl font-bold text-gray-900">맞춤 이력서 생성</h1>
-        <p className="mt-2 text-gray-600">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">맞춤 이력서 생성</h1>
+        <p className="mt-2 text-sm sm:text-base text-gray-600">
           선택한 채용공고에 최적화된 이력서를 AI가 자동으로 작성합니다.
         </p>
 
@@ -137,11 +157,11 @@ function ResumeContent() {
             )}
 
             {/* Action buttons */}
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               <button
                 onClick={handlePdfDownload}
                 disabled={pdfLoading}
-                className="px-6 py-3 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition"
+                className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition"
               >
                 {pdfLoading ? "변환 중..." : "PDF 다운로드"}
               </button>
@@ -151,21 +171,21 @@ function ResumeContent() {
                     navigator.clipboard.writeText(result.markdown_content);
                   }
                 }}
-                className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition"
+                className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition"
               >
                 텍스트 복사
               </button>
               <button
                 onClick={handleGenerate}
                 disabled={loading}
-                className="px-6 py-3 border border-emerald-300 text-emerald-700 font-medium rounded-lg hover:bg-emerald-50 transition"
+                className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 border border-emerald-300 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-50 transition"
               >
                 다시 생성
               </button>
             </div>
 
             {/* Markdown preview */}
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-8">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 sm:p-8">
               <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {result.markdown_content}
@@ -176,5 +196,6 @@ function ResumeContent() {
         )}
       </div>
     </div>
+    </AuthGuard>
   );
 }
