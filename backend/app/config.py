@@ -20,8 +20,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
 
-    # CORS origins allowed by the backend
+    # CORS origins allowed by the backend (comma-separated in env var)
     cors_origins: list[str] = ["http://localhost:3000"]
+    # Render deployment: set CORS_ORIGINS="https://your-app.vercel.app,http://localhost:3000"
 
     class Config:
         env_file = ".env"
