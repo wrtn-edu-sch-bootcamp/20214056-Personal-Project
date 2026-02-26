@@ -189,6 +189,11 @@ export default function PortfolioPage() {
           >
             {loading ? "분석 중..." : "포트폴리오 분석하기"}
           </button>
+          {loading && (
+            <p className="text-xs text-gray-400 text-center mt-2">
+              서버 상태에 따라 최대 1분 정도 소요될 수 있습니다.
+            </p>
+          )}
 
           {error && (
             <p className="mt-4 text-sm text-red-600 bg-red-50 p-3 rounded-lg">

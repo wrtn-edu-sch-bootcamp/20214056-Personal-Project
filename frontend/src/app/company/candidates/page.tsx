@@ -113,7 +113,10 @@ function CandidatesContent() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
-        <main className="max-w-6xl mx-auto px-4 py-12 text-center text-gray-500">로딩 중...</main>
+        <main className="max-w-6xl mx-auto px-4 py-12 text-center">
+          <p className="text-gray-500">로딩 중...</p>
+          <p className="text-xs text-gray-400 mt-1">서버가 절전 모드일 경우 최초 요청 시 30~60초가 소요될 수 있습니다.</p>
+        </main>
       </div>
     );
   }
@@ -180,6 +183,7 @@ function CandidatesContent() {
           <div className="text-center py-10">
             <div className="inline-block w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
             <p className="mt-3 text-gray-500 text-sm">후보자를 분석하고 있습니다...</p>
+            <p className="mt-1 text-xs text-gray-400">서버 상태에 따라 최대 1분 정도 소요될 수 있습니다.</p>
           </div>
         )}
 

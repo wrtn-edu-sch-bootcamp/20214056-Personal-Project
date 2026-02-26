@@ -24,6 +24,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         <div className="text-center text-gray-500">
           <div className="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
           <p className="mt-3 text-sm">인증 확인 중...</p>
+          <p className="mt-1 text-xs text-gray-400">서버가 절전 모드일 경우 최초 요청 시 30~60초가 소요될 수 있습니다.</p>
         </div>
       </div>
     );

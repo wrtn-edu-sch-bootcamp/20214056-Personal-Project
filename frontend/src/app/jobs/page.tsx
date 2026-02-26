@@ -146,6 +146,7 @@ function JobsContent() {
           <div className="mt-10 text-center text-gray-500">
             <div className="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
             <p className="mt-3">채용공고를 분석하고 있습니다...</p>
+            <p className="mt-1 text-xs text-gray-400">서버 상태에 따라 최대 1분 정도 소요될 수 있습니다.</p>
           </div>
         )}
 

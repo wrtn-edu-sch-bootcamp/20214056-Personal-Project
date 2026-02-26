@@ -165,6 +165,11 @@ function InterviewContent() {
               >
                 {loading ? "면접 준비 중..." : "면접 시작하기"}
               </button>
+              {loading && (
+                <p className="text-xs text-gray-400 text-center mt-2">
+                  서버 상태에 따라 최대 1분 정도 소요될 수 있습니다.
+                </p>
+              )}
             </div>
           )}
 

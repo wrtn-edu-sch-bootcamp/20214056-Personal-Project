@@ -91,7 +91,10 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
-        <main className="max-w-6xl mx-auto px-4 py-12 text-center text-gray-500">로딩 중...</main>
+        <main className="max-w-6xl mx-auto px-4 py-12 text-center">
+          <p className="text-gray-500">로딩 중...</p>
+          <p className="text-xs text-gray-400 mt-1">서버가 절전 모드일 경우 최초 요청 시 30~60초가 소요될 수 있습니다.</p>
+        </main>
       </div>
     );
   }
@@ -115,7 +118,10 @@ export default function DashboardPage() {
         )}
 
         {loading ? (
-          <div className="text-center text-gray-500 py-12">데이터를 불러오는 중...</div>
+          <div className="text-center py-12">
+            <p className="text-gray-500">데이터를 불러오는 중...</p>
+            <p className="text-xs text-gray-400 mt-1">서버 상태에 따라 최대 1분 정도 소요될 수 있습니다.</p>
+          </div>
         ) : (
           <div className="space-y-10">
             {/* ── Portfolios ─────────────────────────────── */}

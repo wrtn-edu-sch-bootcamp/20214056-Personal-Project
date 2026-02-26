@@ -109,6 +109,9 @@ function ResumeContent() {
             <p className="mt-1 text-sm text-gray-400">
               최대 30초 정도 소요될 수 있습니다.
             </p>
+            <p className="mt-1 text-xs text-gray-400">
+              서버가 절전 모드인 경우 추가로 30~60초가 소요될 수 있습니다.
+            </p>
           </div>
         )}
 

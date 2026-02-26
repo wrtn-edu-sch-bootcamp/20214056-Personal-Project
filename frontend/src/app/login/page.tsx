@@ -191,6 +191,11 @@ export default function LoginPage() {
                 ? "기업 회원가입"
                 : "회원가입"}
             </button>
+            {loading && (
+              <p className="text-xs text-gray-400 text-center mt-2">
+                서버가 절전 모드일 경우 최초 요청 시 30~60초가 소요될 수 있습니다.
+              </p>
+            )}
           </form>
         </div>
       </main>
