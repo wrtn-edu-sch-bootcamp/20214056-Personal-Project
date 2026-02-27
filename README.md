@@ -4,14 +4,17 @@
 
 **포트폴리오 기반 AI 채용 매칭 플랫폼**
 
-포트폴리오 업로드 한 번으로 채용 추천 · 맞춤 이력서 생성 · 면접 시뮬레이션까지
+구직자: 포트폴리오 업로드 한 번으로 채용 추천 · 맞춤 이력서 생성 · 면접 시뮬레이션까지
+기업: 채용 공고 업로드 한 번으로 적합한 인재 맞춤 추천
+
+https://job-fit-ai-taupe.vercel.app/
 
 [![Deploy - Frontend](https://img.shields.io/badge/Frontend-Vercel-000000?logo=vercel)](https://job-fit-ai-taupe.vercel.app)
 [![Deploy - Backend](https://img.shields.io/badge/Backend-Render-46E3B7?logo=render)](https://jobfit-ai-eps3.onrender.com)
 
 </div>
 
-> 이 문서는 **사전 지식 없는 사람도 문서만으로 프로젝트를 완벽히 재현**할 수 있도록 구성되어 있다. 문제 정의부터 해결까지의 로드맵, 범위·일정·우선순위(MVP), 단계별 재현 가이드, 그리고 **전체 워크플로우의 재현·확장 가능성 및 도구 간 연계 최적화** 내용을 포함한다.
+> 이 문서는 **사전 지식 없는 사람도 문서만으로 프로젝트를 완벽히 재현**할 수 있도록 구성되어 있다. 문제 정의부터 해결까지의 로드맵, 범위·일정·우선순위(MVP), 단계별 재현 가이드, 그리고 **전체 워크플로우의 재현·확장 가능성 및 도구 간 연계 최적화** 내용을 포함합니다.
 
 ---
 
