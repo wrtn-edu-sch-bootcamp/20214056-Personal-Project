@@ -5,6 +5,7 @@ Returns both external API jobs and company-registered jobs in a unified format.
 
 from __future__ import annotations
 
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,11 +82,14 @@ async def browse_jobs(
 async def recommend_jobs(
     portfolio_id: str = Query(..., description="ID of the parsed portfolio"),
     limit: int = Query(30, ge=1, le=100),
+    experience_level: Optional[str] = Query(None, description="Override experience filter: 신입, 1~3년, 3~5년, 5~10년, 10년 이상"),
+    preferred_locations: Optional[str] = Query(None, description="Comma-separated location filter override, e.g. '서울,경기'"),
     db: AsyncSession = Depends(get_db),
 ):
     """Return job postings ranked by similarity to the portfolio.
 
     Merges crawled jobs with company-registered postings.
+    Applies experience/location filters from portfolio or query params.
     """
     row = await crud.get_portfolio(db, portfolio_id)
     if row is None:
@@ -93,8 +97,17 @@ async def recommend_jobs(
 
     portfolio = PortfolioSchema.model_validate(row.portfolio_json)
 
-    # Get crawled jobs via matcher
-    external_jobs = await _matcher.recommend(portfolio, limit=limit, db=db)
+    # Parse comma-separated locations if provided
+    loc_list: list[str] | None = None
+    if preferred_locations:
+        loc_list = [l.strip() for l in preferred_locations.split(",") if l.strip()]
+
+    # Get crawled jobs via matcher with filters
+    external_jobs = await _matcher.recommend(
+        portfolio, limit=limit, db=db,
+        experience_level=experience_level,
+        preferred_locations=loc_list,
+    )
 
     # Get company DB jobs
     company_jobs = await _fetch_company_jobs(db)

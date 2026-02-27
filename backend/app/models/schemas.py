@@ -35,7 +35,7 @@ class Project(BaseModel):
 
 
 class Education(BaseModel):
-    institution: str
+    institution: str | None = None
     degree: str | None = None
     major: str | None = None
     period: str | None = None
@@ -52,6 +52,8 @@ class PortfolioSchema(BaseModel):
     education: list[Education] = Field(default_factory=list)
     certifications: list[str] = Field(default_factory=list)
     keywords: list[str] = Field(default_factory=list)
+    experience_level: str | None = None  # "신입", "1~3년", "3~5년", "5~10년", "10년 이상"
+    preferred_locations: list[str] = Field(default_factory=list)  # ["서울", "경기", ...]
 
 
 # ── Portfolio API request / response ────────────────────────

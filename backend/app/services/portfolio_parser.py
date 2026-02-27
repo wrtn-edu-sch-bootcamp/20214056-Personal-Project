@@ -89,10 +89,13 @@ _PORTFOLIO_JSON_SCHEMA: dict[str, Any] = {
         },
         "certifications": {"type": "array", "items": {"type": "string"}},
         "keywords":       {"type": "array", "items": {"type": "string"}},
+        "experience_level": {"type": "string", "nullable": True},
+        "preferred_locations": {"type": "array", "items": {"type": "string"}},
     },
     "required": [
         "name", "contact", "summary", "skills", "experiences",
         "projects", "education", "certifications", "keywords",
+        "experience_level", "preferred_locations",
     ],
 }
 
@@ -108,6 +111,8 @@ Rules:
 - If information for a field is not present, use null or an empty array as appropriate.
 - Infer implicit skills from project descriptions (e.g. "Built a REST API with FastAPI" -> add FastAPI, Python).
 - The 'keywords' field should contain the most important terms for job matching (technologies, domains, roles).
+- For 'experience_level': calculate total career years from the experiences section. Choose exactly one of: "신입" (0-1 years), "1~3년", "3~5년", "5~10년", "10년 이상". If no experience info is available, use null.
+- For 'preferred_locations': extract any mentioned preferred work locations or regions (e.g. "서울", "경기", "부산", "원격근무"). If none mentioned, return an empty array.
 - Always respond in the same language as the input text.
 - Output ONLY valid JSON — no extra text or markdown fences.
 """

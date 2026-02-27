@@ -357,14 +357,14 @@ export default function HomePage() {
           <div className="mt-16 sm:mt-20 grid grid-cols-3 gap-6 max-w-lg mx-auto animate-fade-in-up delay-300" style={{ opacity: 0 }}>
             {(isCompany
               ? [
-                  { label: "AI 매칭 정확도", value: "95%" },
-                  { label: "평균 매칭 시간", value: "30초" },
-                  { label: "등록 인재", value: "500+" },
+                  { label: "자동화된 채용 흐름", value: "All-in-One" },
+                  { label: "AI 임베딩 매칭", value: "유사도 분석" },
+                  { label: "공고 등록 즉시", value: "실시간 탐색" },
                 ]
               : [
-                  { label: "AI 분석 정확도", value: "95%" },
-                  { label: "평균 매칭 시간", value: "30초" },
-                  { label: "지원 포맷", value: "4종" },
+                  { label: "PDF · URL · GitHub · 텍스트", value: "입력 4종" },
+                  { label: "추천 · 이력서 · 면접", value: "올인원" },
+                  { label: "경력 · 지역 필터", value: "맞춤 추천" },
                 ]
             ).map((stat) => (
               <div
@@ -375,8 +375,8 @@ export default function HomePage() {
                     : "bg-white/60 backdrop-blur-sm border-white/80"
                 }`}
               >
-                <div className={`text-2xl sm:text-3xl font-bold ${isCompany ? "text-emerald-400" : "text-gradient"}`}>{stat.value}</div>
-                <div className={`text-xs sm:text-sm mt-1 font-medium ${isCompany ? "text-slate-400" : "text-slate-500"}`}>{stat.label}</div>
+                <div className={`text-xl sm:text-2xl font-bold whitespace-nowrap ${isCompany ? "text-emerald-400" : "text-gradient"}`}>{stat.value}</div>
+                <div className={`text-[11px] sm:text-xs mt-1.5 font-medium whitespace-nowrap ${isCompany ? "text-slate-400" : "text-slate-500"}`}>{stat.label}</div>
               </div>
             ))}
           </div>
@@ -522,7 +522,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="bg-slate-50 border-t border-slate-200/60 py-8 sm:py-10">
-        <div className="page-container flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="page-container flex flex-col items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
               <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -530,6 +530,11 @@ export default function HomePage() {
               </svg>
             </div>
             <span className="text-sm font-semibold text-slate-600">JobFit AI</span>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-slate-400">
+            <span>Developed by <span className="font-medium text-slate-500">Hyunwoo Choi</span></span>
+            <span className="text-slate-300">|</span>
+            <a href="mailto:ihyonoo0520@gmail.com" className="hover:text-indigo-500 transition-colors">ihyonoo0520@gmail.com</a>
           </div>
           <p className="text-xs text-slate-400">
             &copy; 2026 JobFit AI. Portfolio-based Job Recommendation System.

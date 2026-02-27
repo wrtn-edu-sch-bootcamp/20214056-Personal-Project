@@ -4,7 +4,13 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
 import AuthGuard from "@/components/AuthGuard";
-import { getRecommendedJobs, searchJobs, type JobPosting } from "@/lib/api";
+import { getRecommendedJobs, searchJobs, getPortfolio, type JobPosting } from "@/lib/api";
+
+const EXPERIENCE_LEVELS = ["신입", "1~3년", "3~5년", "5~10년", "10년 이상"] as const;
+const LOCATION_OPTIONS = [
+  "서울", "경기", "인천", "부산", "대구", "대전", "광주", "울산", "세종",
+  "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주", "원격근무",
+] as const;
 
 export default function JobsPage() {
   return (
@@ -28,6 +34,23 @@ function JobsContent() {
     portfolioId ? "recommend" : "search"
   );
 
+  // Experience / location filter state
+  const [expFilter, setExpFilter] = useState<string>("");
+  const [locFilter, setLocFilter] = useState<string[]>([]);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+
+  // Load portfolio's saved filters on mount
+  useEffect(() => {
+    if (!portfolioId) return;
+    (async () => {
+      try {
+        const pf = await getPortfolio(portfolioId);
+        if (pf.portfolio.experience_level) setExpFilter(pf.portfolio.experience_level);
+        if (pf.portfolio.preferred_locations?.length) setLocFilter(pf.portfolio.preferred_locations);
+      } catch { /* non-critical */ }
+    })();
+  }, [portfolioId]);
+
   useEffect(() => {
     if (portfolioId && mode === "recommend") {
       loadRecommendations();
@@ -40,13 +63,40 @@ function JobsContent() {
     setLoading(true);
     setError(null);
     try {
-      const resp = await getRecommendedJobs(portfolioId);
+      const resp = await getRecommendedJobs(
+        portfolioId, 30,
+        expFilter || undefined,
+        locFilter.length > 0 ? locFilter : undefined,
+      );
       setJobs(resp.jobs);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "추천 로딩 실패");
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyFilters = () => {
+    setShowFilterPanel(false);
+    if (portfolioId && mode === "recommend") {
+      loadRecommendations();
+    }
+  };
+
+  const toggleLocFilter = (loc: string) => {
+    setLocFilter((prev) =>
+      prev.includes(loc) ? prev.filter((l) => l !== loc) : [...prev, loc]
+    );
+  };
+
+  const clearFilters = () => {
+    setExpFilter("");
+    setLocFilter([]);
+    setShowFilterPanel(false);
+    // Reload with no filters after state update
+    setTimeout(() => {
+      if (portfolioId && mode === "recommend") loadRecommendations();
+    }, 0);
   };
 
   const handleSearch = async () => {
@@ -124,6 +174,85 @@ function JobsContent() {
               </div>
             </div>
           </div>
+
+          {/* Active filter badges + filter toggle */}
+          {portfolioId && mode === "recommend" && (
+            <div className="mb-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setShowFilterPanel(!showFilterPanel)}
+                  className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  필터 {showFilterPanel ? "닫기" : "설정"}
+                </button>
+                {expFilter && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium ring-1 ring-inset ring-indigo-600/10">
+                    경력: {expFilter}
+                    <button onClick={() => { setExpFilter(""); setTimeout(loadRecommendations, 0); }} className="hover:text-indigo-900">&times;</button>
+                  </span>
+                )}
+                {locFilter.map((loc) => (
+                  <span key={loc} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium ring-1 ring-inset ring-emerald-600/10">
+                    {loc}
+                    <button onClick={() => { toggleLocFilter(loc); setTimeout(loadRecommendations, 0); }} className="hover:text-emerald-900">&times;</button>
+                  </span>
+                ))}
+                {(expFilter || locFilter.length > 0) && (
+                  <button onClick={clearFilters} className="text-xs text-slate-400 hover:text-red-500 font-medium">
+                    전체 해제
+                  </button>
+                )}
+              </div>
+
+              {/* Filter panel */}
+              {showFilterPanel && (
+                <div className="card-premium p-5 mt-3 animate-fade-in-down space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">경력 연차</label>
+                    <div className="flex flex-wrap gap-2">
+                      {EXPERIENCE_LEVELS.map((level) => (
+                        <button
+                          key={level}
+                          onClick={() => setExpFilter(expFilter === level ? "" : level)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            expFilter === level
+                              ? "bg-indigo-600 text-white shadow-sm"
+                              : "bg-white text-slate-500 border border-slate-200 hover:border-indigo-300"
+                          }`}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">희망 근무 지역</label>
+                    <div className="flex flex-wrap gap-2">
+                      {LOCATION_OPTIONS.map((loc) => (
+                        <button
+                          key={loc}
+                          onClick={() => toggleLocFilter(loc)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            locFilter.includes(loc)
+                              ? "bg-emerald-600 text-white shadow-sm"
+                              : "bg-white text-slate-500 border border-slate-200 hover:border-emerald-300"
+                          }`}
+                        >
+                          {loc}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={applyFilters} className="btn-primary text-sm w-full">
+                    필터 적용하기
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {!portfolioId && (
             <div className="flex items-start gap-3 p-4 bg-indigo-50/60 rounded-xl text-sm text-indigo-700 border border-indigo-100 mb-6">

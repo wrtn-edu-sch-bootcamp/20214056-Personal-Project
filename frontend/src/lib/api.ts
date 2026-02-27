@@ -76,6 +76,8 @@ export interface PortfolioSchema {
   education: Education[];
   certifications: string[];
   keywords: string[];
+  experience_level?: string | null;
+  preferred_locations?: string[];
 }
 
 export interface PortfolioResponse {
@@ -182,11 +184,17 @@ export async function browseJobs(
 
 export async function getRecommendedJobs(
   portfolioId: string,
-  limit = 30
+  limit = 30,
+  experienceLevel?: string | null,
+  preferredLocations?: string[],
 ): Promise<JobRecommendationResponse> {
-  return request<JobRecommendationResponse>(
-    `/jobs/recommend?portfolio_id=${portfolioId}&limit=${limit}`
-  );
+  const params = new URLSearchParams({
+    portfolio_id: portfolioId,
+    limit: String(limit),
+  });
+  if (experienceLevel) params.set("experience_level", experienceLevel);
+  if (preferredLocations?.length) params.set("preferred_locations", preferredLocations.join(","));
+  return request<JobRecommendationResponse>(`/jobs/recommend?${params}`);
 }
 
 export async function searchJobs(

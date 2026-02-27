@@ -258,16 +258,18 @@ function PortfolioCard({
   onDelete: (id: string) => void;
   onToggleVisibility: (id: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const pf = portfolio.portfolio;
   const skills = pf.skills.slice(0, 6).map((s) => s.name);
 
   return (
     <div className="card-premium p-5 sm:p-6">
+      {/* Header: name + summary + visibility toggle */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <h3 className="font-bold text-slate-900 truncate">{pf.name || "이름 없음"}</h3>
           {pf.summary && (
-            <p className="text-sm text-slate-500 mt-1 line-clamp-2">{pf.summary}</p>
+            <p className={`text-sm text-slate-500 mt-1 ${expanded ? "" : "line-clamp-2"}`}>{pf.summary}</p>
           )}
         </div>
         <button
@@ -281,13 +283,9 @@ function PortfolioCard({
           }`}>
             {portfolio.is_public ? "공개" : "비공개"}
           </span>
-          {/* Toggle track */}
           <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-            portfolio.is_public
-              ? "bg-emerald-500"
-              : "bg-slate-300"
+            portfolio.is_public ? "bg-emerald-500" : "bg-slate-300"
           }`}>
-            {/* Toggle knob */}
             <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${
               portfolio.is_public ? "translate-x-[18px]" : "translate-x-[3px]"
             }`} />
@@ -295,14 +293,18 @@ function PortfolioCard({
         </button>
       </div>
 
-      {skills.length > 0 && (
+      {/* Skills (collapsed: top 6, expanded: all) */}
+      {pf.skills.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-4">
-          {skills.map((s) => (
-            <span key={s} className="badge-primary text-[11px]">
-              {s}
+          {(expanded ? pf.skills : pf.skills.slice(0, 6)).map((s, i) => (
+            <span key={i} className="badge-primary text-[11px]">
+              {s.name}
+              {expanded && s.proficiency && (
+                <span className="text-indigo-400 ml-1">({s.proficiency})</span>
+              )}
             </span>
           ))}
-          {pf.skills.length > 6 && (
+          {!expanded && pf.skills.length > 6 && (
             <span className="badge-neutral text-[11px]">
               +{pf.skills.length - 6}
             </span>
@@ -310,6 +312,170 @@ function PortfolioCard({
         </div>
       )}
 
+      {/* Experience & location badges */}
+      {(pf.experience_level || (pf.preferred_locations && pf.preferred_locations.length > 0)) && (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {pf.experience_level && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-[11px] font-medium ring-1 ring-inset ring-indigo-600/10">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              {pf.experience_level}
+            </span>
+          )}
+          {pf.preferred_locations?.map((loc) => (
+            <span key={loc} className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-md text-[11px] font-medium ring-1 ring-inset ring-emerald-600/10">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              {loc}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Expanded detail sections */}
+      {expanded && (
+        <div className="space-y-4 mb-4 animate-fade-in">
+          {/* Contact */}
+          {pf.contact && (pf.contact.email || pf.contact.phone || pf.contact.github || pf.contact.blog) && (
+            <div className="bg-slate-50 rounded-xl p-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">연락처</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm text-slate-600">
+                {pf.contact.email && (
+                  <div className="flex items-center gap-2">
+                    <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span className="truncate">{pf.contact.email}</span>
+                  </div>
+                )}
+                {pf.contact.phone && (
+                  <div className="flex items-center gap-2">
+                    <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <span>{pf.contact.phone}</span>
+                  </div>
+                )}
+                {pf.contact.github && (
+                  <div className="flex items-center gap-2">
+                    <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                    </svg>
+                    <a href={`https://github.com/${pf.contact.github}`} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline truncate">
+                      {pf.contact.github}
+                    </a>
+                  </div>
+                )}
+                {pf.contact.blog && (
+                  <div className="flex items-center gap-2">
+                    <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <a href={pf.contact.blog} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline truncate">
+                      {pf.contact.blog}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Experiences */}
+          {pf.experiences.length > 0 && (
+            <div className="bg-slate-50 rounded-xl p-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">경력</h4>
+              <div className="space-y-3">
+                {pf.experiences.map((exp, i) => (
+                  <div key={i} className="border-l-2 border-indigo-200 pl-3">
+                    <p className="font-semibold text-sm text-slate-900">{exp.company} — {exp.role}</p>
+                    {exp.period && <p className="text-xs text-slate-400 mt-0.5">{exp.period}</p>}
+                    {exp.description && <p className="text-xs text-slate-600 mt-1 leading-relaxed">{exp.description}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Projects */}
+          {pf.projects.length > 0 && (
+            <div className="bg-slate-50 rounded-xl p-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">프로젝트</h4>
+              <div className="space-y-3">
+                {pf.projects.map((proj, i) => (
+                  <div key={i} className="bg-white rounded-lg p-3 ring-1 ring-slate-100">
+                    <p className="font-semibold text-sm text-slate-900">{proj.name}</p>
+                    {proj.description && <p className="text-xs text-slate-600 mt-1 leading-relaxed">{proj.description}</p>}
+                    {proj.tech_stack.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {proj.tech_stack.map((t, j) => (
+                          <span key={j} className="badge-neutral text-[10px]">{t}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Education */}
+          {pf.education.length > 0 && (
+            <div className="bg-slate-50 rounded-xl p-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">학력</h4>
+              <div className="space-y-2">
+                {pf.education.map((edu, i) => (
+                  <div key={i} className="text-sm">
+                    <p className="font-semibold text-slate-900">{edu.institution || "미상"}</p>
+                    <p className="text-xs text-slate-500">
+                      {edu.major}{edu.degree ? ` · ${edu.degree}` : ""}{edu.period ? ` · ${edu.period}` : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Certifications */}
+          {pf.certifications.length > 0 && (
+            <div className="bg-slate-50 rounded-xl p-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">자격증</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {pf.certifications.map((cert, i) => (
+                  <span key={i} className="badge-neutral text-[11px]">{cert}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Keywords */}
+          {pf.keywords.length > 0 && (
+            <div className="bg-slate-50 rounded-xl p-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">핵심 키워드</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {pf.keywords.map((kw, i) => (
+                  <span key={i} className="inline-flex items-center px-2.5 py-1 bg-amber-50 text-amber-700 rounded-md text-[11px] font-medium ring-1 ring-inset ring-amber-600/10">{kw}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Expand/collapse toggle */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-slate-400 hover:text-indigo-600 transition-colors mb-3"
+      >
+        <span>{expanded ? "접기" : "자세히 보기"}</span>
+        <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Action buttons */}
       <div className="flex gap-2 flex-wrap pt-3 border-t border-slate-100">
         <Link
           href={`/jobs?portfolio_id=${portfolio.id}`}

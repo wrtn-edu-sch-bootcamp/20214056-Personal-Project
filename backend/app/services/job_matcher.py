@@ -93,9 +93,14 @@ class JobMatcherService:
         self,
         keywords: str = "",
         db: AsyncSession | None = None,
+        experience: str | None = None,
+        locations: list[str] | None = None,
     ) -> list[JobPosting]:
-        """Fetch jobs from crawled DB only."""
-        jobs = await fetch_all_jobs(keywords=keywords, count_each=50, db=db)
+        """Fetch jobs from crawled DB with optional experience/location filters."""
+        jobs = await fetch_all_jobs(
+            keywords=keywords, count_each=50, db=db,
+            experience=experience, locations=locations,
+        )
 
         # Register in lookup cache
         for job in jobs:
@@ -108,12 +113,32 @@ class JobMatcherService:
         portfolio: PortfolioSchema,
         limit: int = 10,
         db: AsyncSession | None = None,
+        experience_level: str | None = None,
+        preferred_locations: list[str] | None = None,
     ) -> list[JobPosting]:
-        """Rank jobs by cosine similarity to the portfolio embedding."""
+        """Rank jobs by cosine similarity to the portfolio embedding.
+
+        Applies experience/location pre-filtering when provided.
+        Falls back to unfiltered pool if filtered results are too few (<5).
+        """
         settings = get_settings()
 
-        # Fetch ALL crawled jobs (no keyword filter) so embedding ranking covers the full pool
-        pool = await self._get_job_pool(keywords="", db=db)
+        # Resolve filters: explicit params override portfolio fields
+        exp = experience_level or portfolio.experience_level
+        locs = preferred_locations if preferred_locations else (portfolio.preferred_locations or None)
+
+        # Try filtered pool first
+        pool = await self._get_job_pool(keywords="", db=db, experience=exp, locations=locs)
+
+        # Fallback: if filtered pool is too small, relax filters progressively
+        if len(pool) < 5:
+            if exp and locs:
+                # Try location-only
+                pool = await self._get_job_pool(keywords="", db=db, locations=locs)
+            if len(pool) < 5:
+                # Fully unfiltered fallback
+                pool = await self._get_job_pool(keywords="", db=db)
+                logger.info("Filter fallback: using unfiltered pool (%d jobs)", len(pool))
 
         if not pool:
             logger.warning("No crawled jobs available for recommendation")

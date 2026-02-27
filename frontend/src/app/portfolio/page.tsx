@@ -9,9 +9,16 @@ import {
   submitPortfolioUrl,
   submitPortfolioGitHub,
   uploadPortfolioPdf,
+  updatePortfolio,
   type PortfolioResponse,
   type PortfolioSchema,
 } from "@/lib/api";
+
+const EXPERIENCE_LEVELS = ["신입", "1~3년", "3~5년", "5~10년", "10년 이상"] as const;
+const LOCATION_OPTIONS = [
+  "서울", "경기", "인천", "부산", "대구", "대전", "광주", "울산", "세종",
+  "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주", "원격근무",
+] as const;
 
 type TabKey = "text" | "pdf" | "url" | "github";
 
@@ -65,7 +72,17 @@ export default function PortfolioPage() {
   const [github, setGithub] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
 
+  // Experience / location fields (user-specified, merged into result)
+  const [experienceLevel, setExperienceLevel] = useState<string>("");
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+
   const [result, setResult] = useState<PortfolioResponse | null>(null);
+
+  const toggleLocation = (loc: string) => {
+    setSelectedLocations((prev) =>
+      prev.includes(loc) ? prev.filter((l) => l !== loc) : [...prev, loc]
+    );
+  };
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -90,6 +107,27 @@ export default function PortfolioPage() {
           resp = await submitPortfolioGitHub(github);
           break;
       }
+
+      // Merge user-specified experience/location into LLM result
+      const merged = { ...resp!.portfolio };
+      if (experienceLevel) merged.experience_level = experienceLevel;
+      if (selectedLocations.length > 0) merged.preferred_locations = selectedLocations;
+
+      // Persist merged data if user provided overrides
+      if (experienceLevel || selectedLocations.length > 0) {
+        try {
+          const updated = await updatePortfolio(resp!.id, merged);
+          resp = updated;
+        } catch {
+          // Non-critical: proceed with the original response
+          resp = { ...resp!, portfolio: merged };
+        }
+      } else {
+        // Use LLM-extracted values and reflect them in local state
+        if (resp!.portfolio.experience_level) setExperienceLevel(resp!.portfolio.experience_level);
+        if (resp!.portfolio.preferred_locations?.length) setSelectedLocations(resp!.portfolio.preferred_locations);
+      }
+
       setResult(resp!);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.");
@@ -216,17 +254,77 @@ export default function PortfolioPage() {
                 </div>
               )}
 
+              {/* Experience & Location selectors */}
+              <div className="mt-6 pt-6 border-t border-slate-100 space-y-5">
+                {/* Experience level (required) */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    경력 연차
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {EXPERIENCE_LEVELS.map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setExperienceLevel(experienceLevel === level ? "" : level)}
+                        className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          experienceLevel === level
+                            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/25"
+                            : "bg-white text-slate-500 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                  {!experienceLevel && (
+                    <p className="text-xs text-red-400 mt-2">경력 연차를 선택해야 분석을 시작할 수 있습니다.</p>
+                  )}
+                </div>
+
+                {/* Preferred locations */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    희망 근무 지역
+                    <span className="text-xs text-slate-400 font-normal ml-2">복수 선택 가능</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {LOCATION_OPTIONS.map((loc) => (
+                      <button
+                        key={loc}
+                        type="button"
+                        onClick={() => toggleLocation(loc)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                          selectedLocations.includes(loc)
+                            ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/25"
+                            : "bg-white text-slate-500 border border-slate-200 hover:border-emerald-300 hover:text-emerald-600"
+                        }`}
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <button
                 onClick={handleSubmit}
-                disabled={loading}
-                className="mt-6 w-full py-3.5 btn-primary text-sm"
+                disabled={loading || !experienceLevel}
+                className={`mt-6 w-full py-3.5 text-sm transition-all duration-200 ${
+                  !experienceLevel
+                    ? "bg-slate-200 text-slate-400 rounded-xl font-semibold cursor-not-allowed"
+                    : "btn-primary"
+                }`}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <span className="spinner w-4 h-4" />
                     분석 중...
                   </span>
-                ) : "포트폴리오 분석하기"}
+                ) : !experienceLevel
+                  ? "경력 연차를 먼저 선택해 주세요"
+                  : "포트폴리오 분석하기"}
               </button>
               {loading && (
                 <p className="text-xs text-slate-400 text-center mt-3">
@@ -279,6 +377,27 @@ function PortfolioPreview({ data, onNext }: { data: PortfolioResponse; onNext: (
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">기본 정보</h3>
             <p className="text-lg font-bold text-slate-900">{p.name}</p>
             {p.summary && <p className="mt-2 text-slate-600 leading-relaxed">{p.summary}</p>}
+            {(p.experience_level || (p.preferred_locations && p.preferred_locations.length > 0)) && (
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
+                {p.experience_level && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium ring-1 ring-inset ring-indigo-600/10">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    {p.experience_level}
+                  </span>
+                )}
+                {p.preferred_locations?.map((loc) => (
+                  <span key={loc} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium ring-1 ring-inset ring-emerald-600/10">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {loc}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
